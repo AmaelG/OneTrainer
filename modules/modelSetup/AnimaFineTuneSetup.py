@@ -1,0 +1,98 @@
+from modules.model.AnimaModel import AnimaModel
+from modules.modelSetup.BaseAnimaSetup import BaseAnimaSetup
+from modules.modelSetup.BaseModelSetup import BaseModelSetup
+from modules.util import factory
+from modules.util.config.TrainConfig import TrainConfig
+from modules.util.enum.ModelType import ModelType
+from modules.util.enum.TrainingMethod import TrainingMethod
+from modules.util.NamedParameterGroup import NamedParameterGroupCollection
+from modules.util.optimizer_util import init_model_parameters
+from modules.util.TrainProgress import TrainProgress
+
+import torch
+
+
+class AnimaFineTuneSetup(
+    BaseAnimaSetup,
+):
+    def __init__(
+            self,
+            train_device: torch.device,
+            temp_device: torch.device,
+            debug_mode: bool,
+    ):
+        super().__init__(
+            train_device=train_device,
+            temp_device=temp_device,
+            debug_mode=debug_mode,
+        )
+
+    def create_parameters(
+            self,
+            model: AnimaModel,
+            config: TrainConfig,
+    ) -> NamedParameterGroupCollection:
+        parameter_group_collection = NamedParameterGroupCollection()
+
+        self._create_model_part_parameters(parameter_group_collection, "text_encoder", model.text_encoder, config.text_encoder)
+        self._create_model_part_parameters(parameter_group_collection, "transformer", model.transformer, config.transformer)
+
+        if config.train_any_embedding() or config.train_any_output_embedding():
+            raise NotImplementedError("Embeddings not implemented for Anima")
+
+        return parameter_group_collection
+
+    def __setup_requires_grad(
+            self,
+            model: AnimaModel,
+            config: TrainConfig,
+    ):
+        self._setup_model_part_requires_grad("text_encoder", model.text_encoder, config.text_encoder, model.train_progress)
+        self._setup_model_part_requires_grad("transformer", model.transformer, config.transformer, model.train_progress)
+        model.vae.requires_grad_(False)
+
+    def setup_model(
+            self,
+            model: AnimaModel,
+            config: TrainConfig,
+    ):
+        params = self.create_parameters(model, config)
+        self.__setup_requires_grad(model, config)
+        init_model_parameters(model, params, self.train_device)
+
+    def setup_train_device(
+            self,
+            model: AnimaModel,
+            config: TrainConfig,
+    ):
+        vae_on_train_device = not config.latent_caching
+        text_encoder_on_train_device = config.train_text_encoder_or_embedding() or not config.latent_caching
+
+        model.text_encoder_to(self.train_device if text_encoder_on_train_device else self.temp_device)
+        model.vae_to(self.train_device if vae_on_train_device else self.temp_device)
+        model.transformer_to(self.train_device)
+
+        if model.text_encoder:
+            if config.text_encoder.train:
+                model.text_encoder.train()
+            else:
+                model.text_encoder.eval()
+
+        model.vae.eval()
+
+        if config.transformer.train:
+            model.transformer.train()
+        else:
+            model.transformer.eval()
+
+    def after_optimizer_step(
+            self,
+            model: AnimaModel,
+            config: TrainConfig,
+            train_progress: TrainProgress,
+    ):
+        del train_progress
+        self.__setup_requires_grad(model, config)
+
+
+factory.register(BaseModelSetup, AnimaFineTuneSetup, ModelType.ANIMA, TrainingMethod.FINE_TUNE)

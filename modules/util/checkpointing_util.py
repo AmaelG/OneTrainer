@@ -376,6 +376,15 @@ def enable_checkpointing_for_qwen_transformer(
         (model.transformer_blocks, ["hidden_states", "encoder_hidden_states"]),
     ])
 
+
+def enable_checkpointing_for_anima_transformer(
+        model: nn.Module,
+        config: TrainConfig,
+) -> LayerOffloadConductor:
+    return enable_checkpointing(model, config, config.compile, [
+        (model.core.transformer_blocks, ["hidden_states", "encoder_hidden_states"]),
+    ])
+
 def enable_checkpointing_for_z_image_transformer(
         model: nn.Module,
         config: TrainConfig,
