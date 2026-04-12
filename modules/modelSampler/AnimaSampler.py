@@ -1,3 +1,4 @@
+import copy
 from collections.abc import Callable
 
 from modules.model.AnimaModel import AnimaModel
@@ -17,11 +18,11 @@ import torch
 
 class AnimaSampler(BaseModelSampler):
     def __init__(
-            self,
-            train_device: torch.device,
-            temp_device: torch.device,
-            model: AnimaModel,
-            model_type: ModelType,
+        self,
+        train_device: torch.device,
+        temp_device: torch.device,
+        model: AnimaModel,
+        model_type: ModelType,
     ):
         super().__init__(train_device, temp_device)
 
@@ -29,11 +30,32 @@ class AnimaSampler(BaseModelSampler):
         self.model_type = model_type
         self.pipeline = model.create_pipeline()
 
+    def __activate_sampling_compiled_calls(self) -> list[torch.nn.Module]:
+        swapped_modules = []
+        for module in self.model.transformer.modules():
+            compiled_call_impl = getattr(module, "_compiled_call_impl", None)
+            sampling_compiled_call_impl = getattr(module, "_sampling_compiled_call_impl", None)
+            if compiled_call_impl is None and sampling_compiled_call_impl is None:
+                continue
+
+            module._training_compiled_call_impl = compiled_call_impl
+            module._compiled_call_impl = sampling_compiled_call_impl
+            if module._compiled_call_impl is None:
+                module.compile(fullgraph=True)
+            swapped_modules.append(module)
+
+        return swapped_modules
+
+    def __restore_training_compiled_calls(self, swapped_modules: list[torch.nn.Module]):
+        for module in swapped_modules:
+            module._sampling_compiled_call_impl = getattr(module, "_compiled_call_impl", None)
+            module._compiled_call_impl = getattr(module, "_training_compiled_call_impl", None)
+
     @torch.no_grad()
     def __sample(
-            self,
-            sample_config: SampleConfig,
-            on_update_progress: Callable[[int, int], None],
+        self,
+        sample_config: SampleConfig,
+        on_update_progress: Callable[[int, int], None],
     ) -> ModelSamplerOutput:
         generator = torch.Generator(device=self.train_device)
         if sample_config.random_seed:
@@ -50,8 +72,10 @@ class AnimaSampler(BaseModelSampler):
             image = load_image(sample_config.base_image_path, convert_mode="RGB")
             mask_image = load_image(sample_config.mask_image_path, convert_mode="L")
 
+        self.pipeline.scheduler = copy.deepcopy(self.model.noise_scheduler)
         self.model.to(self.train_device)
         self.pipeline.to(self.train_device)
+        swapped_modules = self.__activate_sampling_compiled_calls()
 
         step_state = {"i": 0}
 
@@ -60,21 +84,24 @@ class AnimaSampler(BaseModelSampler):
             on_update_progress(step_state["i"], sample_config.diffusion_steps)
             return None
 
-        with self.model.autocast_context:
-            result = self.pipeline(
-                prompt=sample_config.prompt,
-                negative_prompt=sample_config.negative_prompt,
-                image=image,
-                mask_image=mask_image,
-                strength=1.0,
-                width=width,
-                height=height,
-                num_inference_steps=sample_config.diffusion_steps,
-                guidance_scale=sample_config.cfg_scale,
-                generator=generator,
-                callback_on_step_end=on_step_end,
-                callback_on_step_end_tensor_inputs=["latents"],
-            )
+        try:
+            with self.model.autocast_context:
+                result = self.pipeline(
+                    prompt=sample_config.prompt,
+                    negative_prompt=sample_config.negative_prompt,
+                    image=image,
+                    mask_image=mask_image,
+                    strength=1.0,
+                    width=width,
+                    height=height,
+                    num_inference_steps=sample_config.diffusion_steps,
+                    guidance_scale=sample_config.cfg_scale,
+                    generator=generator,
+                    callback_on_step_end=on_step_end,
+                    callback_on_step_end_tensor_inputs=["latents"],
+                )
+        finally:
+            self.__restore_training_compiled_calls(swapped_modules)
 
         self.model.to(self.temp_device)
         torch_gc()
@@ -85,14 +112,14 @@ class AnimaSampler(BaseModelSampler):
         )
 
     def sample(
-            self,
-            sample_config: SampleConfig,
-            destination: str,
-            image_format: ImageFormat | None = None,
-            video_format: VideoFormat | None = None,
-            audio_format: AudioFormat | None = None,
-            on_sample: Callable[[ModelSamplerOutput], None] = lambda _: None,
-            on_update_progress: Callable[[int, int], None] = lambda _, __: None,
+        self,
+        sample_config: SampleConfig,
+        destination: str,
+        image_format: ImageFormat | None = None,
+        video_format: VideoFormat | None = None,
+        audio_format: AudioFormat | None = None,
+        on_sample: Callable[[ModelSamplerOutput], None] = lambda _: None,
+        on_update_progress: Callable[[int, int], None] = lambda _, __: None,
     ):
         sampler_output = self.__sample(
             sample_config=sample_config,

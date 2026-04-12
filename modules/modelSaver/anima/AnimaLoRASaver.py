@@ -41,20 +41,36 @@ class AnimaLoRASaver(
             r"^transformer\.(?:core\.)?transformer_blocks\.(\d+)\.(attn1|attn2)\.(to_q|to_k|to_v|to_out\.0)(\..+)$",
             key,
         )
-        if match is None:
-            return None
+        if match is not None:
+            block_index, attn_block, projection, suffix = match.groups()
 
-        block_index, attn_block, projection, suffix = match.groups()
+            attn_name = "self_attn" if attn_block == "attn1" else "cross_attn"
+            projection_name = {
+                "to_q": "q_proj",
+                "to_k": "k_proj",
+                "to_v": "v_proj",
+                "to_out.0": "output_proj",
+            }[projection]
 
-        attn_name = "self_attn" if attn_block == "attn1" else "cross_attn"
-        projection_name = {
-            "to_q": "q_proj",
-            "to_k": "k_proj",
-            "to_v": "v_proj",
-            "to_out.0": "output_proj",
-        }[projection]
+            return f"lora_unet_blocks_{block_index}_{attn_name}_{projection_name}{suffix}"
 
-        return f"lora_unet_blocks_{block_index}_{attn_name}_{projection_name}{suffix}"
+        match = re.match(
+            r"^transformer\.llm_adapter\.blocks\.(\d+)\.(self_attn|cross_attn)\.(q_proj|k_proj|v_proj|o_proj)(\..+)$",
+            key,
+        )
+        if match is not None:
+            block_index, attn_block, projection, suffix = match.groups()
+            return f"lora_unet_llm_adapter_blocks_{block_index}_{attn_block}_{projection}{suffix}"
+
+        match = re.match(
+            r"^transformer\.llm_adapter\.blocks\.(\d+)\.mlp\.(0|2)(\..+)$",
+            key,
+        )
+        if match is not None:
+            block_index, mlp_layer, suffix = match.groups()
+            return f"lora_unet_llm_adapter_blocks_{block_index}_mlp_{mlp_layer}{suffix}"
+
+        return None
 
     def __save_comfy_safetensors(
             self,
