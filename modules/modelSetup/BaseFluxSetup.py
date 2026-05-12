@@ -202,6 +202,7 @@ class BaseFluxSetup(
             train_progress: TrainProgress,
             *,
             deterministic: bool = False,
+            timestep: Tensor | None = None,
     ) -> dict:
         with model.autocast_context:
             batch_seed = 0 if deterministic else train_progress.global_step * multi.world_size() + multi.rank()
@@ -242,14 +243,15 @@ class BaseFluxSetup(
             latent_noise = self._create_noise(scaled_latent_image, config, generator)
 
             shift = model.calculate_timestep_shift(scaled_latent_image.shape[-2], scaled_latent_image.shape[-1])
-            timestep = self._get_timestep_discrete(
-                model.noise_scheduler.config['num_train_timesteps'],
-                deterministic,
-                generator,
-                scaled_latent_image.shape[0],
-                config,
-                shift = shift if config.dynamic_timestep_shifting else config.timestep_shift,
-            )
+            if timestep is None:
+                timestep = self._get_timestep_discrete(
+                    model.noise_scheduler.config['num_train_timesteps'],
+                    deterministic,
+                    generator,
+                    scaled_latent_image.shape[0],
+                    config,
+                    shift = shift if config.dynamic_timestep_shifting else config.timestep_shift,
+                )
 
             scaled_noisy_latent_image, sigma = self._add_noise_discrete(
                 scaled_latent_image,

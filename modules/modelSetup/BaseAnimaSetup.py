@@ -80,6 +80,7 @@ class BaseAnimaSetup(
             train_progress: TrainProgress,
             *,
             deterministic: bool = False,
+            timestep: Tensor | None = None,
     ) -> dict:
         with model.autocast_context:
             batch_seed = 0 if deterministic else train_progress.global_step * multi.world_size() + multi.rank()
@@ -109,14 +110,15 @@ class BaseAnimaSetup(
             else:
                 num_train_timesteps = int(noise_scheduler_config.num_train_timesteps)
 
-            timestep = self._get_timestep_discrete(
-                num_train_timesteps,
-                deterministic,
-                generator,
-                scaled_latent_image.shape[0],
-                config,
-                shift=config.timestep_shift,
-            )
+            if timestep is None:
+                timestep = self._get_timestep_discrete(
+                    num_train_timesteps,
+                    deterministic,
+                    generator,
+                    scaled_latent_image.shape[0],
+                    config,
+                    shift=config.timestep_shift,
+                )
 
             scaled_noisy_latent_image, sigma = self._add_noise_discrete(
                 scaled_latent_image,
