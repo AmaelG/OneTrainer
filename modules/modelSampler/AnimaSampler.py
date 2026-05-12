@@ -82,6 +82,10 @@ class AnimaSampler(BaseModelSampler):
         def on_step_end(_pipeline, _step, _timestep, _kwargs):
             step_state["i"] += 1
             on_update_progress(step_state["i"], sample_config.diffusion_steps)
+            if step_state["i"] >= _pipeline.num_timesteps:
+                self.model.transformer_to(self.temp_device)
+                self.model.text_encoder_to(self.temp_device)
+                torch_gc()
             return None
 
         try:
