@@ -271,16 +271,33 @@ def layer_filter_entry(master, row, column, ui_state: UIState, preset_var_name: 
     presets_list = list(presets.keys()) + ["custom"]
 
 
+    def widget_exists(widget) -> bool:
+        try:
+            return bool(widget and widget.winfo_exists())
+        except tk.TclError:
+            return False
+
+    def widget_manager(widget) -> str:
+        if not widget_exists(widget):
+            return ""
+        try:
+            return widget.winfo_manager()
+        except tk.TclError:
+            return ""
+
     def hide_layer_entry():
-        if layer_entry and layer_entry.winfo_manager():
+        if widget_manager(layer_entry):
             layer_entry.grid_remove()
 
     def show_layer_entry():
-        if layer_entry and not layer_entry.winfo_manager():
+        if widget_exists(layer_entry) and not widget_manager(layer_entry):
             layer_entry.grid()
 
 
     def preset_set_layer_choice(selected: str):
+        if not widget_exists(layer_entry):
+            return
+
         if not selected or selected not in presets_list:
             selected = presets_list[0]
 
@@ -289,8 +306,10 @@ def layer_filter_entry(master, row, column, ui_state: UIState, preset_var_name: 
             show_layer_entry()
             layer_entry.configure(state="normal", fg_color=layer_entry_fg_color, text_color=layer_entry_text_color)
             #layer_entry.cget('textvariable').set("")
-            regex_label.grid()
-            regex_switch.grid()
+            if widget_exists(regex_label):
+                regex_label.grid()
+            if widget_exists(regex_switch):
+                regex_switch.grid()
         else:
             # Preserve custom text before overwriting
             #if self.prior_selected == "custom":
@@ -313,8 +332,10 @@ def layer_filter_entry(master, row, column, ui_state: UIState, preset_var_name: 
             ui_state.get_var(entry_var_name).set(",".join(patterns))
             ui_state.get_var(regex_var_name).set(preset_uses_regex)
 
-            regex_label.grid_remove()
-            regex_switch.grid_remove()
+            if widget_exists(regex_label):
+                regex_label.grid_remove()
+            if widget_exists(regex_switch):
+                regex_switch.grid_remove()
 
             if selected == "full" and not patterns:
                 hide_layer_entry()
@@ -335,7 +356,7 @@ def layer_filter_entry(master, row, column, ui_state: UIState, preset_var_name: 
     )
 
     def on_layer_filter_preset_change():
-        if not layer_selector:
+        if not widget_exists(layer_selector):
             return
         selected = ui_state.get_var(preset_var_name).get()
         preset_set_layer_choice(selected)

@@ -43,6 +43,8 @@ class ModelType(Enum):
 
     ANIMA = 'ANIMA'
 
+    NANOSAUR = 'NANOSAUR'
+
     def __str__(self):
         return self.value
 
@@ -117,6 +119,9 @@ class ModelType(Enum):
     def is_anima(self):
         return self == ModelType.ANIMA
 
+    def is_nanosaur(self):
+        return self == ModelType.NANOSAUR
+
     def has_mask_input(self) -> bool:
         return self == ModelType.STABLE_DIFFUSION_15_INPAINTING \
             or self == ModelType.STABLE_DIFFUSION_20_INPAINTING \
@@ -166,6 +171,7 @@ class ModelType(Enum):
             or self.is_hunyuan_video() \
             or self.is_hi_dream() \
             or self.is_anima() \
+            or self.is_nanosaur() \
             or self.is_z_image() \
             or self.is_ernie()
 

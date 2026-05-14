@@ -67,6 +67,8 @@ class ModelTab:
             self.__setup_qwen_ui(base_frame)
         elif self.train_config.model_type.is_anima():
             self.__setup_anima_ui(base_frame)
+        elif self.train_config.model_type.is_nanosaur():
+            self.__setup_nanosaur_ui(base_frame)
         elif self.train_config.model_type.is_sana():
             self.__setup_sana_ui(base_frame)
         elif self.train_config.model_type.is_hunyuan_video():
@@ -368,6 +370,23 @@ class ModelTab:
             allow_safetensors=True,
             allow_diffusers=self.train_config.training_method == TrainingMethod.FINE_TUNE,
             allow_legacy_safetensors=self.train_config.training_method == TrainingMethod.LORA,
+        )
+
+    def __setup_nanosaur_ui(self, frame):
+        row = 0
+        row = self.__create_base_dtype_components(frame, row)
+        row = self.__create_base_components(
+            frame,
+            row,
+            has_transformer=True,
+            has_text_encoder=True,
+            has_vae=True,
+        )
+        row = self.__create_output_components(
+            frame,
+            row,
+            allow_safetensors=True,
+            allow_comfy=self.train_config.training_method == TrainingMethod.LORA,
         )
 
     def __create_dtype_options(self, include_gguf: bool=False, include_a8: bool=False) -> list[tuple[str, DataType]]:
