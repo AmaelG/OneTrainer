@@ -1,7 +1,4 @@
-import sys
 from contextlib import nullcontext
-from pathlib import Path
-from random import Random
 
 from modules.model.BaseModel import BaseModel
 from modules.module.LoRAModule import LoRAModuleWrapper
@@ -12,19 +9,14 @@ import torch
 from torch import Tensor, nn
 
 
-_NANOSAUR_SOURCE_DIR = Path(__file__).resolve().parents[2] / "_storage" / "Nanosaur"
-if str(_NANOSAUR_SOURCE_DIR) not in sys.path:
-    sys.path.insert(0, str(_NANOSAUR_SOURCE_DIR))
-
-from model_lora import (  # noqa: E402
+from modules.model.nanosaur.model_lora import (
     LATENT_SCALE,
     LATENT_SHIFT,
     TEXT_MAX_LENGTH,
     LoraNanoSaurTransformer2DModel,
     NanoSaurSentencePieceTokenizer,
-    build_text_encoder,
 )
-from vae import NanoSaurVAE  # noqa: E402
+from modules.model.nanosaur.vae import NanoSaurVAE
 
 
 class NanosaurModel(BaseModel):

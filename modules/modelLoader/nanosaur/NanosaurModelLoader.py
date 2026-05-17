@@ -1,10 +1,16 @@
 import os
-import sys
 from pathlib import Path
 
-from modules.model.NanosaurModel import NanosaurModel, _NANOSAUR_SOURCE_DIR
+from modules.model.NanosaurModel import NanosaurModel
 from modules.modelLoader.BaseModelLoader import BaseModelLoader
 from modules.modelLoader.mixin.InternalModelLoaderMixin import InternalModelLoaderMixin
+from modules.model.nanosaur.model_lora import (
+    LoraNanoSaurTransformer2DModel,
+    VAE_LATENT_DIM,
+    _clean_state_dict,
+    build_text_encoder,
+)
+from modules.model.nanosaur.vae import NanoSaurVAE
 from modules.util.config.TrainConfig import QuantizationConfig
 from modules.util.enum.ModelType import ModelType
 from modules.util.ModelNames import ModelNames
@@ -12,17 +18,6 @@ from modules.util.ModelWeightDtypes import ModelWeightDtypes
 
 import torch
 from safetensors.torch import load_file
-
-if str(_NANOSAUR_SOURCE_DIR) not in sys.path:
-    sys.path.insert(0, str(_NANOSAUR_SOURCE_DIR))
-
-from model_lora import (  # noqa: E402
-    LoraNanoSaurTransformer2DModel,
-    VAE_LATENT_DIM,
-    _clean_state_dict,
-    build_text_encoder,
-)
-from vae import NanoSaurVAE  # noqa: E402
 
 
 class NanosaurModelLoader(BaseModelLoader, InternalModelLoaderMixin):
