@@ -34,10 +34,26 @@ class BaseAnimaSetup(
     metaclass=ABCMeta,
 ):
     LAYER_PRESETS = {
-        "attn-mlp": ["attn", "mlp"],
-        "attn-only": ["attn"],
-        "blocks": ["transformer_blocks"],
-        "full": [],
+        "attn-mlp": {
+            "patterns": [r"^(?!.*llm_adapter).*(attn|mlp).*"],
+            "adapter_patterns": [r"^llm_adapter.*(attn|mlp).*"],
+            "regex": True,
+        },
+        "attn-only": {
+            "patterns": [r"^(?!.*llm_adapter).*attn.*"],
+            "adapter_patterns": [r"^llm_adapter.*attn.*"],
+            "regex": True,
+        },
+        "blocks": {
+            "patterns": ["transformer_blocks"],
+            "adapter_patterns": ["llm_adapter"],
+            "regex": False,
+        },
+        "full": {
+            "patterns": [r"^(?!.*llm_adapter).*"],
+            "adapter_patterns": [r"^llm_adapter.*"],
+            "regex": True,
+        },
     }
 
     def setup_optimizations(

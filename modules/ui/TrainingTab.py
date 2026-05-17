@@ -843,6 +843,8 @@ class TrainingTab:
             entry_tooltip="Comma-separated list of diffusion layers to train. Regular expressions (if toggled) are supported. Any model layer with a matching name will be trained",
             regex_var_name="layer_filter_regex",
             regex_tooltip="If enabled, layer filter patterns are interpreted as regular expressions. Otherwise, simple substring matching is used.",
+            adapter_toggle_label="Adapter" if self.train_config.model_type.is_anima() else None,
+            adapter_toggle_tooltip="Toggles Anima LLM adapter layers for this preset. Keeping this off avoids training the LLM adapter.",
         )
 
 

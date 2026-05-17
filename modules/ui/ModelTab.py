@@ -516,6 +516,8 @@ class ModelTab:
             regex_var_name="quantization.layer_filter_regex",
             regex_tooltip="If enabled, layer filter patterns are interpreted as regular expressions. Otherwise, simple substring matching is used.",
             frame_color="transparent",
+            adapter_toggle_label="Adapter" if self.train_config.model_type.is_anima() else None,
+            adapter_toggle_tooltip="Toggles Anima LLM adapter layers for this quantization preset.",
         )
 
         # SVDQuant - create vertical grids to match the size of layer_filter_entry

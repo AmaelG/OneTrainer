@@ -239,7 +239,7 @@ def time_entry(master, row, column, ui_state: UIState, var_name: str, unit_var_n
 
     return frame
 
-def layer_filter_entry(master, row, column, ui_state: UIState, preset_var_name: str, preset_label: str, preset_tooltip: str, presets, entry_var_name, entry_tooltip: str, regex_var_name, regex_tooltip: str, frame_color=None):
+def layer_filter_entry(master, row, column, ui_state: UIState, preset_var_name: str, preset_label: str, preset_tooltip: str, presets, entry_var_name, entry_tooltip: str, regex_var_name, regex_tooltip: str, frame_color=None, adapter_toggle_label: str | None = None, adapter_toggle_tooltip: str | None = None):
     frame = ctk.CTkFrame(master=master, corner_radius=5, fg_color=frame_color)
     frame.grid(row=row, column=column, padx=5, pady=5, sticky="nsew")
     frame.grid_columnconfigure(0, weight=1)
@@ -266,9 +266,11 @@ def layer_filter_entry(master, row, column, ui_state: UIState, preset_var_name: 
     #else:
     #    self.prior_custom = ""
 
-    layer_entry.grid_configure(columnspan=2, sticky="ew")
+    layer_entry.grid_configure(columnspan=3 if adapter_toggle_label else 2, sticky="ew")
 
     presets_list = list(presets.keys()) + ["custom"]
+    adapter_enabled = False
+    adapter_button = None
 
 
     def widget_exists(widget) -> bool:
@@ -294,12 +296,44 @@ def layer_filter_entry(master, row, column, ui_state: UIState, preset_var_name: 
             layer_entry.grid()
 
 
-    def preset_set_layer_choice(selected: str):
+    def get_preset_layers(selected: str, include_adapter: bool) -> tuple[list[str], bool, bool]:
+        preset_def = presets.get(selected, [])
+        if isinstance(preset_def, dict):
+            patterns = list(preset_def.get("patterns", []))
+            adapter_patterns = list(preset_def.get("adapter_patterns", []))
+            preset_uses_regex = bool(preset_def.get("regex", False))
+        else:
+            patterns = list(preset_def)
+            adapter_patterns = []
+            preset_uses_regex = False
+
+        if include_adapter:
+            patterns += adapter_patterns
+
+        return patterns, preset_uses_regex, bool(adapter_patterns)
+
+    def update_adapter_button(has_adapter_patterns: bool):
+        if not widget_exists(adapter_button):
+            return
+
+        if has_adapter_patterns:
+            adapter_button.configure(text=f"{adapter_toggle_label}: {'On' if adapter_enabled else 'Off'}")
+            adapter_button.grid()
+        else:
+            adapter_button.grid_remove()
+
+    def preset_set_layer_choice(selected: str, include_adapter: bool | None = None):
+        nonlocal adapter_enabled
+
         if not widget_exists(layer_entry):
             return
 
         if not selected or selected not in presets_list:
             selected = presets_list[0]
+
+        if include_adapter is None:
+            include_adapter = adapter_enabled if selected != "custom" else False
+        adapter_enabled = include_adapter
 
         if selected == "custom":
             # Allow editing + regex toggle
@@ -310,19 +344,14 @@ def layer_filter_entry(master, row, column, ui_state: UIState, preset_var_name: 
                 regex_label.grid()
             if widget_exists(regex_switch):
                 regex_switch.grid()
+            update_adapter_button(False)
         else:
             # Preserve custom text before overwriting
             #if self.prior_selected == "custom":
             #    self.prior_custom = self.layer_entry.get()
 
-            # Resolve preset definition (list[str] OR {'patterns': [...], 'regex': bool})
-            preset_def = presets.get(selected, [])
-            if isinstance(preset_def, dict):
-                patterns = preset_def.get("patterns", [])
-                preset_uses_regex = bool(preset_def.get("regex", False))
-            else:
-                patterns = preset_def
-                preset_uses_regex = False
+            # Resolve preset definition (list[str] OR {'patterns': [...], 'regex': bool, 'adapter_patterns': [...]})
+            patterns, preset_uses_regex, has_adapter_patterns = get_preset_layers(selected, include_adapter)
 
             disabled_color = ("gray85", "gray17")
             disabled_text_color = ("gray30", "gray70")
@@ -342,6 +371,8 @@ def layer_filter_entry(master, row, column, ui_state: UIState, preset_var_name: 
             else:
                 show_layer_entry()
 
+            update_adapter_button(has_adapter_patterns)
+
 #        self.prior_selected = selected
 
     label(frame, 0, 0, preset_label,
@@ -352,14 +383,24 @@ def layer_filter_entry(master, row, column, ui_state: UIState, preset_var_name: 
 
     layer_selector = options(
         frame, 0, 1, presets_list, ui_state, preset_var_name,
-        command=preset_set_layer_choice
+        command=lambda selected: preset_set_layer_choice(selected, False)
     )
+
+    if adapter_toggle_label:
+        def toggle_adapter():
+            selected = ui_state.get_var(preset_var_name).get()
+            preset_set_layer_choice(selected, not adapter_enabled)
+
+        adapter_button = ctk.CTkButton(frame, text=f"{adapter_toggle_label}: Off", width=110, command=toggle_adapter)
+        adapter_button.grid(row=0, column=2, padx=(0, PAD), pady=PAD, sticky="new")
+        if adapter_toggle_tooltip:
+            ToolTip(adapter_button, adapter_toggle_tooltip, x_position=25)
 
     def on_layer_filter_preset_change():
         if not widget_exists(layer_selector):
             return
         selected = ui_state.get_var(preset_var_name).get()
-        preset_set_layer_choice(selected)
+        preset_set_layer_choice(selected, False)
 
     ui_state.add_var_trace(
         preset_var_name,
