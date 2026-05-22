@@ -940,13 +940,16 @@ class LoRAModuleWrapper:
 
         return lora_modules
 
+    def __active_modules(self):
+        return [module for module in self.lora_modules.values() if not isinstance(module, self.dummy_klass)]
+
     def requires_grad_(self, requires_grad: bool):
-        for module in self.lora_modules.values():
+        for module in self.__active_modules():
             module.requires_grad_(requires_grad)
 
     def parameters(self) -> list[Parameter]:
         parameters = []
-        for module in self.lora_modules.values():
+        for module in self.__active_modules():
             parameters += module.parameters()
         return parameters
 
@@ -1025,7 +1028,7 @@ class LoRAModuleWrapper:
         Returns a list of all modules
         """
         modules = []
-        for module in self.lora_modules.values():
+        for module in self.__active_modules():
             modules += module.modules()
 
         return modules
@@ -1034,28 +1037,28 @@ class LoRAModuleWrapper:
         """
         Hooks the LoRA into the module without changing its weights
         """
-        for module in self.lora_modules.values():
+        for module in self.__active_modules():
             module.hook_to_module()
 
     def remove_hook_from_module(self):
         """
         Removes the LoRA hook from the module without changing its weights
         """
-        for module in self.lora_modules.values():
+        for module in self.__active_modules():
             module.remove_hook_from_module()
 
     def apply_to_module(self):
         """
         Applys the LoRA to the module, changing its weights
         """
-        for module in self.lora_modules.values():
+        for module in self.__active_modules():
             module.apply_to_module()
 
     def extract_from_module(self, base_module: nn.Module):
         """
         Creates a LoRA from the difference between the base_module and the orig_module
         """
-        for module in self.lora_modules.values():
+        for module in self.__active_modules():
             module.extract_from_module(base_module)
 
     def prune(self):
@@ -1070,5 +1073,5 @@ class LoRAModuleWrapper:
         """
         if dropout_probability < 0 or dropout_probability > 1:
             raise ValueError("Dropout probability must be in [0, 1]")
-        for module in self.lora_modules.values():
+        for module in self.__active_modules():
             module.dropout.p = dropout_probability
