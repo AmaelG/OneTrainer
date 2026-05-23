@@ -48,6 +48,8 @@ def make_fine_tune_model_loader(
             model = model_class(model_type=model_type)
 
             self._load_internal_data(model, model_names.base_model)
+            if model_type.is_anima_pixel() and model_names.transformer_model:
+                self._load_internal_data(model, model_names.transformer_model)
             model.model_spec = self._load_default_model_spec(model_type)
 
             base_model_loader.load(model, model_type, model_names, weight_dtypes, quantization)

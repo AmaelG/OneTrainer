@@ -243,13 +243,14 @@ class ModelTab:
             has_transformer=True,
             allow_override_transformer=True,
             has_text_encoder_1=True,
-            has_vae=True,
+            has_vae=not self.train_config.model_type.is_anima_pixel(),
         )
         row = self.__create_output_components(
             frame,
             row,
             allow_safetensors=True,
-            allow_diffusers=self.train_config.training_method == TrainingMethod.FINE_TUNE,
+            allow_diffusers=self.train_config.training_method == TrainingMethod.FINE_TUNE
+                            and not self.train_config.model_type.is_anima_pixel(),
             allow_legacy_safetensors=self.train_config.training_method == TrainingMethod.LORA,
             allow_comfy=self.train_config.training_method == TrainingMethod.LORA,
         )
@@ -504,7 +505,10 @@ class ModelTab:
             row += 1
 
         cls = create.get_model_setup_class(self.train_config.model_type, self.train_config.training_method)
-        presets = cls.LAYER_PRESETS if cls is not None else {"full": []}
+        if cls is not None and hasattr(cls, "QUANTIZATION_LAYER_PRESETS"):
+            presets = cls.QUANTIZATION_LAYER_PRESETS
+        else:
+            presets = cls.LAYER_PRESETS if cls is not None else {"full": []}
 
         components.label(frame, row, 0, "Quantization")
         components.layer_filter_entry(frame, row, 1, self.ui_state,

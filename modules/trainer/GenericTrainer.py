@@ -101,7 +101,9 @@ class GenericTrainer(BaseTrainer):
             last_backup_path = self.config.get_last_backup_path()
 
             if last_backup_path:
-                if self.config.training_method == TrainingMethod.LORA:
+                if self.config.model_type.is_anima_pixel():
+                    model_names.transformer_model = last_backup_path
+                elif self.config.training_method == TrainingMethod.LORA:
                     model_names.lora = last_backup_path
                 elif self.config.training_method == TrainingMethod.EMBEDDING:
                     model_names.embedding.model_name = last_backup_path

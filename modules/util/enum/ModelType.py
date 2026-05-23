@@ -43,6 +43,8 @@ class ModelType(Enum):
 
     ANIMA = 'ANIMA'
 
+    ANIMA_PIXEL = 'ANIMA_PIXEL'
+
     NANOSAUR = 'NANOSAUR'
 
     def __str__(self):
@@ -117,7 +119,11 @@ class ModelType(Enum):
         return self == ModelType.ERNIE
 
     def is_anima(self):
-        return self == ModelType.ANIMA
+        return self == ModelType.ANIMA \
+            or self == ModelType.ANIMA_PIXEL
+
+    def is_anima_pixel(self):
+        return self == ModelType.ANIMA_PIXEL
 
     def is_nanosaur(self):
         return self == ModelType.NANOSAUR

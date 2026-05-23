@@ -103,6 +103,7 @@ class TopBar:
                 ("Z-Image", ModelType.Z_IMAGE),
                 ("Ernie Image", ModelType.ERNIE),
                 ("Anima", ModelType.ANIMA),
+                ("Anima Pixel", ModelType.ANIMA_PIXEL),
                 ("Nanosaur", ModelType.NANOSAUR),
             ],
             ui_state=self.ui_state,
@@ -136,6 +137,10 @@ class TopBar:
                 ("Fine Tune", TrainingMethod.FINE_TUNE),
                 ("LoRA", TrainingMethod.LORA),
                 ("Embedding", TrainingMethod.EMBEDDING),
+            ]
+        elif self.train_config.model_type.is_anima_pixel():
+            values = [
+                ("Fine Tune", TrainingMethod.FINE_TUNE),
             ]
         elif self.train_config.model_type.is_qwen() \
              or self.train_config.model_type.is_z_image() \
