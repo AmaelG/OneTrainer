@@ -1,4 +1,5 @@
 import os
+import re
 from pathlib import Path
 
 import torch
@@ -11,8 +12,36 @@ from modules.util.enum.ModelFormat import ModelFormat
 
 class AnimaPixelModelSaver(DtypeModelSaverMixin):
     @staticmethod
+    def __format_block_ranges(blocks: set[int]) -> str:
+        if not blocks:
+            return ""
+
+        ranges = []
+        start = None
+        previous = None
+        for block in sorted(blocks):
+            if start is None:
+                start = block
+            elif previous is not None and block != previous + 1:
+                ranges.append(str(start) if start == previous else f"{start}-{previous}")
+                start = block
+            previous = block
+
+        ranges.append(str(start) if start == previous else f"{start}-{previous}")
+        return ",".join(ranges)
+
+    @staticmethod
     def __normalize_key(name: str) -> str:
         return name.replace(".checkpoint.", ".")
+
+    @staticmethod
+    def __trainable_blocks(state_dict: dict[str, torch.Tensor]) -> str:
+        blocks = set()
+        for key in state_dict.keys():
+            match = re.match(r"^transformer\.core\.transformer_blocks\.(\d+)\.", key)
+            if match:
+                blocks.add(int(match.group(1)))
+        return AnimaPixelModelSaver.__format_block_ranges(blocks)
 
     def __trainable_state_dict(self, model: AnimaPixelModel, dtype: torch.dtype | None) -> dict[str, torch.Tensor]:
         state_dict = {}
@@ -44,6 +73,6 @@ class AnimaPixelModelSaver(DtypeModelSaverMixin):
             "onetrainer.checkpoint_type": "subset_overlay",
             "onetrainer.base_model_type": "ANIMA",
             "onetrainer.pixel_patch_size": "16",
-            "onetrainer.trainable_blocks": "0-4,23-27",
+            "onetrainer.trainable_blocks": self.__trainable_blocks(state_dict),
         })
         save_file(state_dict, destination, metadata)

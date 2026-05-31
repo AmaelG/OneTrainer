@@ -7,6 +7,7 @@ from modules.util import factory
 from modules.util.config.TrainConfig import TrainConfig
 from modules.util.enum.ModelType import ModelType
 from modules.util.enum.TrainingMethod import TrainingMethod
+from modules.util.ModuleFilter import ModuleFilter
 from modules.util.NamedParameterGroup import NamedParameterGroup, NamedParameterGroupCollection
 from modules.util.optimizer_util import init_model_parameters
 from modules.util.TrainProgress import TrainProgress
@@ -16,15 +17,19 @@ class AnimaPixelFineTuneSetup(BaseAnimaPixelSetup):
     def __init__(self, train_device: torch.device, temp_device: torch.device, debug_mode: bool):
         super().__init__(train_device=train_device, temp_device=temp_device, debug_mode=debug_mode)
 
+    @staticmethod
+    def __matches_filter(name: str, prefix: str, filters: list[ModuleFilter]) -> bool:
+        return any(f.matches(name) or f.matches(f"{prefix}.{name}") for f in filters)
+
     def create_parameters(self, model: AnimaPixelModel, config: TrainConfig) -> NamedParameterGroupCollection:
         parameter_group_collection = NamedParameterGroupCollection()
         if config.transformer.train:
-            filters = self.trainable_transformer_filters()
+            filters = ModuleFilter.create(config)
             selected = []
             deselected = []
             transformer_parameters = []
             for name, param in model.transformer.named_parameters():
-                if any(f.matches(name) for f in filters) and param.is_floating_point():
+                if self.__matches_filter(name, "transformer", filters) and param.is_floating_point():
                     selected.append(name)
                     transformer_parameters.append(param)
                 else:
@@ -32,20 +37,44 @@ class AnimaPixelFineTuneSetup(BaseAnimaPixelSetup):
 
             print(f"Selected layers: {len(selected)}")
             print(f"Deselected layers: {len(deselected)}")
-            print("Selected layer names:")
-            for name in selected:
-                print(f"  {name}")
+            if self.debug_mode:
+                print("Selected layer names:")
+                for name in selected:
+                    print(f"  {name}")
+            else:
+                print("Note: Enable Debug mode to see the full list of layer names")
 
             parameter_group_collection.add_group(NamedParameterGroup(
                 unique_name="transformer",
                 parameters=transformer_parameters,
                 learning_rate=config.transformer.learning_rate,
             ))
-            parameter_group_collection.add_group(NamedParameterGroup(
-                unique_name="detailer_head",
-                parameters=[p for p in model.detailer_head.parameters() if p.is_floating_point()],
-                learning_rate=config.transformer.learning_rate,
-            ))
+
+            selected = []
+            deselected = []
+            detailer_head_parameters = []
+            for name, param in model.detailer_head.named_parameters():
+                if self.__matches_filter(name, "detailer_head", filters) and param.is_floating_point():
+                    selected.append(name)
+                    detailer_head_parameters.append(param)
+                else:
+                    deselected.append(name)
+
+            print(f"Selected detailer head layers: {len(selected)}")
+            print(f"Deselected detailer head layers: {len(deselected)}")
+            if self.debug_mode:
+                print("Selected detailer head layer names:")
+                for name in selected:
+                    print(f"  {name}")
+            else:
+                print("Note: Enable Debug mode to see the full list of layer names")
+
+            if detailer_head_parameters:
+                parameter_group_collection.add_group(NamedParameterGroup(
+                    unique_name="detailer_head",
+                    parameters=detailer_head_parameters,
+                    learning_rate=config.transformer.learning_rate,
+                ))
         return parameter_group_collection
 
     def __setup_requires_grad(self, model: AnimaPixelModel, config: TrainConfig):
@@ -60,12 +89,12 @@ class AnimaPixelFineTuneSetup(BaseAnimaPixelSetup):
                 param.requires_grad_(False)
 
         if config.transformer.train:
-            filters = self.trainable_transformer_filters()
+            filters = ModuleFilter.create(config)
             for name, param in model.transformer.named_parameters():
-                if param.is_floating_point() and any(f.matches(name) for f in filters):
+                if param.is_floating_point() and self.__matches_filter(name, "transformer", filters):
                     param.requires_grad_(True)
-            for param in model.detailer_head.parameters():
-                if param.is_floating_point():
+            for name, param in model.detailer_head.named_parameters():
+                if param.is_floating_point() and self.__matches_filter(name, "detailer_head", filters):
                     param.requires_grad_(True)
 
     def setup_model(self, model: AnimaPixelModel, config: TrainConfig):

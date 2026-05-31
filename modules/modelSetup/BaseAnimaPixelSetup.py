@@ -33,6 +33,7 @@ class BaseAnimaPixelSetup(
             "patterns": [
                 r"^core\.patch_embed\.",
                 r"^core\.transformer_blocks\.(0|1|2|3|4|23|24|25|26|27)\.",
+                r"^detailer_head\.",
             ],
             "adapter_patterns": [],
             "regex": True,
@@ -144,18 +145,22 @@ class BaseAnimaPixelSetup(
             return {
                 "loss_type": "target",
                 "timestep": timestep,
+                "noisy_image": noisy_image,
                 "predicted": predicted_flow,
                 "target": flow,
             }
 
-    def calculate_loss(self, model: AnimaPixelModel, batch: dict, data: dict, config: TrainConfig) -> Tensor:
+    def calculate_sample_losses(self, model: AnimaPixelModel, batch: dict, data: dict, config: TrainConfig) -> Tensor:
         return self._flow_matching_losses(
             batch=batch,
             data=data,
             config=config,
             train_device=self.train_device,
             sigmas=model.noise_scheduler.sigmas,
-        ).mean()
+        )
+
+    def calculate_loss(self, model: AnimaPixelModel, batch: dict, data: dict, config: TrainConfig) -> Tensor:
+        return self.calculate_sample_losses(model, batch, data, config).mean()
 
     @torch.no_grad()
     def calculate_validation_losses(

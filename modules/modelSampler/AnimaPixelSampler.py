@@ -50,16 +50,33 @@ class AnimaPixelSampler(BaseModelSampler):
                 train_device=self.train_device,
                 text=sample_config.prompt,
             )
+            negative_text_encoder_output = None
+            if sample_config.cfg_scale > 1.0:
+                negative_text_encoder_output = self.model.encode_text(
+                    train_device=self.train_device,
+                    text=sample_config.negative_prompt or "",
+                )
+
             latents = torch.randn((1, 3, height, width), generator=generator, device=self.train_device, dtype=torch.float32)
             timesteps = noise_scheduler.timesteps
             for i, timestep in enumerate(tqdm(timesteps, desc="sampling")):
                 timestep_batch = timestep.expand(latents.shape[0]).to(device=self.train_device, dtype=torch.float32)
                 model_timestep = timestep_batch / float(noise_scheduler.config.num_train_timesteps)
-                flow = self.model.predict_pixel_flow(
+                flow_text = self.model.predict_pixel_flow(
                     noisy_image=latents.to(dtype=self.model.train_dtype.torch_dtype()),
                     timestep=model_timestep,
                     text_encoder_output=text_encoder_output,
                 )
+                if negative_text_encoder_output is not None:
+                    flow_uncond = self.model.predict_pixel_flow(
+                        noisy_image=latents.to(dtype=self.model.train_dtype.torch_dtype()),
+                        timestep=model_timestep,
+                        text_encoder_output=negative_text_encoder_output,
+                    )
+                    flow = flow_uncond + sample_config.cfg_scale * (flow_text - flow_uncond)
+                else:
+                    flow = flow_text
+
                 latents = noise_scheduler.step(flow.float(), timestep, latents, return_dict=False)[0]
                 on_update_progress(i + 1, sample_config.diffusion_steps)
 

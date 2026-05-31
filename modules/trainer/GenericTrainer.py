@@ -77,6 +77,7 @@ class GenericTrainer(BaseTrainer):
         self.model = None
         self.one_step_trained = False
         self.grad_hook_handles = []
+        self.high_loss_threshold = 2.0
 
     def start(self):
         if multi.is_master():
@@ -198,6 +199,47 @@ class GenericTrainer(BaseTrainer):
                     print(f"Could not delete old rolling backup {dirpath}")
 
         return
+
+    def __debug_value(self, value):
+        if torch.is_tensor(value):
+            return value.detach().cpu().tolist()
+        return value
+
+    def __debug_tensor_stats(self, value):
+        if value is None or not torch.is_tensor(value):
+            return None
+
+        tensor = value.detach().float()
+        finite = torch.isfinite(tensor)
+        stats = {
+            "shape": list(tensor.shape),
+            "dtype": str(value.dtype),
+            "device": str(value.device),
+            "finite": bool(finite.all().item()),
+            "nan_count": int(torch.isnan(tensor).sum().item()),
+            "inf_count": int(torch.isinf(tensor).sum().item()),
+        }
+
+        if finite.any():
+            finite_tensor = tensor[finite]
+            stats.update({
+                "min": float(finite_tensor.min().item()),
+                "max": float(finite_tensor.max().item()),
+                "mean": float(finite_tensor.mean().item()),
+                "std": float(finite_tensor.std(unbiased=False).item()),
+                "abs_max": float(finite_tensor.abs().max().item()),
+            })
+
+        return stats
+
+    def __debug_sample_losses(self, batch: dict, model_output_data: dict):
+        calculate_sample_losses = getattr(self.model_setup, "calculate_sample_losses", None)
+        if calculate_sample_losses is None:
+            return None
+
+        with torch.no_grad():
+            sample_losses = calculate_sample_losses(self.model, batch, model_output_data, self.config)
+            return self.__debug_value(sample_losses)
 
     def __enqueue_sample_during_training(self, fun: Callable):
         self.sample_queue.append(fun)
@@ -753,6 +795,29 @@ class GenericTrainer(BaseTrainer):
                         model_output_data = self.model_setup.predict(self.model, batch, self.config, train_progress)
 
                     loss = self.model_setup.calculate_loss(self.model, batch, model_output_data, self.config)
+                    if self.high_loss_threshold is not None:
+                        detached_loss = loss.detach()
+                        multi.reduce_tensor_mean(detached_loss)
+                        loss_value = detached_loss.item()
+                        if loss_value > self.high_loss_threshold and multi.is_master():
+                            print(
+                                "HIGH LOSS",
+                                {
+                                    "step": train_progress.global_step,
+                                    "loss": loss_value,
+                                    "batch_seed": step_seed * multi.world_size() + multi.rank(),
+                                    "timestep": self.__debug_value(model_output_data.get("timestep")),
+                                    "crop_resolution": self.__debug_value(batch.get("crop_resolution")),
+                                    "loss_weight": self.__debug_value(batch.get("loss_weight")),
+                                    "concept_type": self.__debug_value(batch.get("concept_type")),
+                                    "image_path": batch.get("image_path"),
+                                    "sample_losses": self.__debug_sample_losses(batch, model_output_data),
+                                    "pixel_image_stats": self.__debug_tensor_stats(batch.get("pixel_image")),
+                                    "noisy_image_stats": self.__debug_tensor_stats(model_output_data.get("noisy_image")),
+                                    "predicted_stats": self.__debug_tensor_stats(model_output_data.get("predicted")),
+                                    "target_stats": self.__debug_tensor_stats(model_output_data.get("target")),
+                                }
+                            )
 
                     loss = loss / self.config.gradient_accumulation_steps
                     if scaler:
