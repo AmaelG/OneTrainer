@@ -145,6 +145,7 @@ class BaseAnimaPixelSetup(
             return {
                 "loss_type": "target",
                 "timestep": timestep,
+                "pixel_image": pixel_image,
                 "noisy_image": noisy_image,
                 "predicted": predicted_flow,
                 "target": flow,

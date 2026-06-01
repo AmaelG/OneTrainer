@@ -9,6 +9,7 @@ from mgds.pipelineModules.Tokenize import Tokenize
 
 from modules.dataLoader.BaseDataLoader import BaseDataLoader
 from modules.dataLoader.mixin.DataLoaderText2ImageMixin import DataLoaderText2ImageMixin
+from modules.dataLoader.NormalizeImageRange import NormalizeImageRange
 from modules.model.AnimaPixelModel import AnimaPixelModel
 from modules.model.BaseModel import BaseModel
 from modules.modelSetup.BaseAnimaPixelSetup import BaseAnimaPixelSetup
@@ -134,6 +135,7 @@ class AnimaPixelBaseDataLoader(BaseDataLoader, DataLoaderText2ImageMixin):
     ):
         enumerate_input = self._enumerate_input_modules(config, allow_videos=False)
         load_input = self._load_input_modules(config, model.train_dtype, vae_frame_dim=False)
+        load_input.append(NormalizeImageRange("image"))
         mask_augmentation = self._mask_augmentation_modules(config)
         aspect_bucketing_in = self._aspect_bucketing_in(config, 16, False)
         crop_modules = self._crop_modules(config)
