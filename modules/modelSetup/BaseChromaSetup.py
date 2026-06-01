@@ -150,6 +150,7 @@ class BaseChromaSetup(
             train_progress: TrainProgress,
             *,
             deterministic: bool = False,
+            timestep: Tensor | None = None,
     ) -> dict:
         with model.autocast_context:
             batch_seed = 0 if deterministic else train_progress.global_step * multi.world_size() + multi.rank()
@@ -182,13 +183,14 @@ class BaseChromaSetup(
 
             latent_noise = self._create_noise(scaled_latent_image, config, generator)
 
-            timestep = self._get_timestep_discrete(
-                model.noise_scheduler.config['num_train_timesteps'],
-                deterministic,
-                generator,
-                scaled_latent_image.shape[0],
-                config,
-            )
+            if timestep is None:
+                timestep = self._get_timestep_discrete(
+                    model.noise_scheduler.config['num_train_timesteps'],
+                    deterministic,
+                    generator,
+                    scaled_latent_image.shape[0],
+                    config,
+                )
 
             scaled_noisy_latent_image, sigma = self._add_noise_discrete(
                 scaled_latent_image,

@@ -390,6 +390,7 @@ class TrainConfig(BaseConfig):
     tensorboard_always_on: bool
     tensorboard_port: str
     validation: bool
+    validation_timesteps: str
     validate_after: float
     validate_after_unit: TimeUnit
     continue_last_backup: bool
@@ -1032,6 +1033,7 @@ class TrainConfig(BaseConfig):
         data.append(("tensorboard_always_on", False, bool, False))
         data.append(("tensorboard_port", 6006, int, False))
         data.append(("validation", False, bool, False))
+        data.append(("validation_timesteps", "500", str, False))
         data.append(("validate_after", 1, int, False))
         data.append(("validate_after_unit", TimeUnit.EPOCH, TimeUnit, False))
         data.append(("continue_last_backup", False, bool, False))

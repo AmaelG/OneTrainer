@@ -15,7 +15,6 @@ from modules.util.checkpointing_util import (
 )
 from modules.util.config.TrainConfig import TrainConfig
 from modules.util.dtype_util import create_autocast_context, disable_fp16_autocast_context
-from modules.util.enum.TrainingMethod import TrainingMethod
 from modules.util.quantization_util import quantize_layers
 from modules.util.torch_util import torch_gc
 from modules.util.TrainProgress import TrainProgress
@@ -47,29 +46,24 @@ class BaseAnimaSetup(
             model: AnimaModel,
             config: TrainConfig,
     ):
-        if config.gradient_checkpointing.enabled():
-            model.transformer_offload_conductor = \
-                enable_checkpointing_for_qwen_transformer(model.transformer, config)
-            if model.text_encoder is not None:
-                model.text_encoder_offload_conductor = \
-                    enable_checkpointing_for_qwen3_encoder_layers(model.text_encoder, config)
+        if config.transformer.checkpointing_or_offloading_enabled():
+            model.transformer_offload_conductor = enable_checkpointing_for_qwen_transformer(
+                model.transformer, config, config.transformer,
+            )
+        if model.text_encoder is not None and config.text_encoder.checkpointing_or_offloading_enabled():
+            model.text_encoder_offload_conductor = enable_checkpointing_for_qwen3_encoder_layers(
+                model.text_encoder, config, config.text_encoder,
+            )
 
-        model.autocast_context, model.train_dtype = create_autocast_context(self.train_device, config.train_dtype, [
-            config.weight_dtypes().transformer,
-            config.weight_dtypes().text_encoder,
-            config.weight_dtypes().vae,
-            config.weight_dtypes().lora if config.training_method == TrainingMethod.LORA else None,
-        ], config.enable_autocast_cache)
+        model.autocast_context, model.train_dtype = create_autocast_context(
+            self.train_device, config.train_dtype, config.enable_autocast_cache,
+        )
 
         model.text_encoder_autocast_context, model.text_encoder_train_dtype = \
             disable_fp16_autocast_context(
                 self.train_device,
                 config.train_dtype,
                 config.fallback_train_dtype,
-                [
-                    config.weight_dtypes().text_encoder,
-                    config.weight_dtypes().lora if config.training_method == TrainingMethod.LORA else None,
-                ],
                 config.enable_autocast_cache,
             )
 
@@ -85,6 +79,7 @@ class BaseAnimaSetup(
             train_progress: TrainProgress,
             *,
             deterministic: bool = False,
+            timestep: Tensor | None = None,
     ) -> dict:
         with model.autocast_context:
             batch_seed = 0 if deterministic else train_progress.global_step * multi.world_size() + multi.rank()
@@ -109,14 +104,15 @@ class BaseAnimaSetup(
             latent_noise = self._create_noise(scaled_latent_image, config, generator)
 
             shift = model.calculate_timestep_shift(scaled_latent_image.shape[-2], scaled_latent_image.shape[-1])
-            timestep = self._get_timestep_discrete(
-                model.noise_scheduler.config['num_train_timesteps'],
-                deterministic,
-                generator,
-                scaled_latent_image.shape[0],
-                config,
-                shift=shift if config.dynamic_timestep_shifting else config.timestep_shift,
-            )
+            if timestep is None:
+                timestep = self._get_timestep_discrete(
+                    model.noise_scheduler.config['num_train_timesteps'],
+                    deterministic,
+                    generator,
+                    scaled_latent_image.shape[0],
+                    config,
+                    shift=shift if config.dynamic_timestep_shifting else config.timestep_shift,
+                )
 
             scaled_noisy_latent_image, sigma = self._add_noise_discrete(
                 scaled_latent_image,

@@ -189,6 +189,7 @@ class BaseWuerstchenSetup(
             train_progress: TrainProgress,
             *,
             deterministic: bool = False,
+            timestep: Tensor | None = None,
     ) -> dict:
         with model.autocast_context:
             latent_image = batch['latent_image']
@@ -204,12 +205,15 @@ class BaseWuerstchenSetup(
 
             latent_noise = self._create_noise(scaled_latent_image, config, generator)
 
-            timestep = self._get_timestep_continuous(
-                deterministic,
-                generator,
-                scaled_latent_image.shape[0],
-                config,
-            )
+            if timestep is None:
+                timestep = self._get_timestep_continuous(
+                    deterministic,
+                    generator,
+                    scaled_latent_image.shape[0],
+                    config,
+                )
+            else:
+                timestep = timestep.to(dtype=torch.float32) / model.noise_scheduler.config['num_train_timesteps']
 
             if model.model_type.is_wuerstchen_v2():
                 timestep = timestep.mul(1.08).add(0.001).clamp(0.001, 1.0)

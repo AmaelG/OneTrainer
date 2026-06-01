@@ -9,6 +9,7 @@ from modules.modelSetup.mixin.ModelSetupDiffusionLossMixin import ModelSetupDiff
 from modules.modelSetup.mixin.ModelSetupEmbeddingMixin import ModelSetupEmbeddingMixin
 from modules.modelSetup.mixin.ModelSetupFlowMatchingMixin import ModelSetupFlowMatchingMixin
 from modules.modelSetup.mixin.ModelSetupNoiseMixin import ModelSetupNoiseMixin
+from modules.modelSetup.mixin.ModelSetupText2ImageMixin import ModelSetupText2ImageMixin
 from modules.util.checkpointing_util import enable_checkpointing_for_ernie_transformer
 from modules.util.config.TrainConfig import TrainConfig
 from modules.util.dtype_util import create_autocast_context, disable_fp16_autocast_context
@@ -22,6 +23,7 @@ from torch import Tensor
 
 class BaseErnieSetup(
     BaseModelSetup,
+    ModelSetupText2ImageMixin,
     ModelSetupDiffusionLossMixin,
     ModelSetupDebugMixin,
     ModelSetupNoiseMixin,
@@ -67,6 +69,7 @@ class BaseErnieSetup(
             train_progress: TrainProgress,
             *,
             deterministic: bool = False,
+            timestep: Tensor | None = None,
     ) -> dict:
         with model.autocast_context:
             batch_seed = 0 if deterministic else train_progress.global_step * multi.world_size() + multi.rank()
@@ -98,14 +101,15 @@ class BaseErnieSetup(
             latent_noise = self._create_noise(scaled_latent_image, config, generator)
 
             shift = model.calculate_timestep_shift(latent_height, latent_width)
-            timestep = self._get_timestep_discrete(
-                model.noise_scheduler.config['num_train_timesteps'],
-                deterministic,
-                generator,
-                scaled_latent_image.shape[0],
-                config,
-                shift=shift if config.dynamic_timestep_shifting else config.timestep_shift,
-            )
+            if timestep is None:
+                timestep = self._get_timestep_discrete(
+                    model.noise_scheduler.config['num_train_timesteps'],
+                    deterministic,
+                    generator,
+                    scaled_latent_image.shape[0],
+                    config,
+                    shift=shift if config.dynamic_timestep_shifting else config.timestep_shift,
+                )
 
             scaled_noisy_latent_image, sigma = self._add_noise_discrete(
                 scaled_latent_image,
