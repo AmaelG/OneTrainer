@@ -36,6 +36,7 @@ class TopBarController:
             ("Chroma1", ModelType.CHROMA_1),
             ("QwenImage", ModelType.QWEN),
             ("Anima", ModelType.ANIMA),
+            ("Anima Pixel", ModelType.ANIMA_PIXEL),
             ("Z-Image", ModelType.Z_IMAGE),
             ("Ernie Image", ModelType.ERNIE),
         ]
@@ -71,6 +72,10 @@ class TopBarController:
             return [
                 ("Fine Tune", TrainingMethod.FINE_TUNE),
                 ("LoRA", TrainingMethod.LORA),
+            ]
+        elif model_type.is_anima_pixel():
+            return [
+                ("Fine Tune", TrainingMethod.FINE_TUNE),
             ]
         return []
 

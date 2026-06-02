@@ -41,6 +41,8 @@ class ModelType(Enum):
 
     ANIMA = 'ANIMA'
 
+    ANIMA_PIXEL = 'ANIMA_PIXEL'
+
     Z_IMAGE = 'Z_IMAGE'
 
     ERNIE = 'ERNIE'
@@ -104,6 +106,12 @@ class ModelType(Enum):
     def is_anima(self):
         return self == ModelType.ANIMA
 
+    def is_anima_pixel(self):
+        return self == ModelType.ANIMA_PIXEL
+
+    def is_anima_family(self):
+        return self.is_anima() or self.is_anima_pixel()
+
     def is_sana(self):
         return self == ModelType.SANA
 
@@ -165,6 +173,7 @@ class ModelType(Enum):
             or self.is_chroma() \
             or self.is_qwen() \
             or self.is_anima() \
+            or self.is_anima_pixel() \
             or self.is_sana() \
             or self.is_hunyuan_video() \
             or self.is_hi_dream() \
@@ -192,6 +201,8 @@ class ModelType(Enum):
             return (TrainingMethod.FINE_TUNE, TrainingMethod.LORA, TrainingMethod.EMBEDDING)
         if self.is_qwen() or self.is_anima() or self.is_z_image() or self.is_flux_2() or self.is_ernie():
             return (TrainingMethod.FINE_TUNE, TrainingMethod.LORA)
+        if self.is_anima_pixel():
+            return (TrainingMethod.FINE_TUNE,)
         raise ValueError(f"No supported training methods defined for model type {self}")
 
 
@@ -224,6 +235,7 @@ _MODEL_PARTS: dict[ModelType, tuple[str, ...]] = {
     ModelType.CHROMA_1: ("text_encoder", "transformer", "vae"),
     ModelType.QWEN: ("text_encoder", "transformer", "vae"),
     ModelType.ANIMA: ("text_encoder", "transformer", "vae"),
+    ModelType.ANIMA_PIXEL: ("text_encoder", "transformer"),
     ModelType.Z_IMAGE: ("text_encoder", "transformer", "vae"),
     ModelType.ERNIE: ("text_encoder", "transformer", "vae"),
 }

@@ -40,6 +40,8 @@ class BaseModelTabView(ABC):
             self.__setup_qwen_ui(frame, controller, ui_state)
         elif controller.train_config.model_type.is_anima():
             self.__setup_anima_ui(frame, controller, ui_state)
+        elif controller.train_config.model_type.is_anima_pixel():
+            self.__setup_anima_pixel_ui(frame, controller, ui_state)
         elif controller.train_config.model_type.is_sana():
             self.__setup_sana_ui(frame, controller, ui_state)
         elif controller.train_config.model_type.is_hunyuan_video():
@@ -249,6 +251,28 @@ class BaseModelTabView(ABC):
             allow_safetensors=True,
             allow_diffusers=controller.train_config.training_method == TrainingMethod.FINE_TUNE,
             allow_legacy_safetensors=controller.train_config.training_method == TrainingMethod.LORA,
+        )
+
+    def __setup_anima_pixel_ui(self, frame, controller, ui_state):
+        row = 0
+        row = self.__create_base_dtype_components(frame, row, ui_state)
+        row = self.__create_base_components(
+            frame,
+            row,
+            controller,
+            ui_state,
+            has_transformer=True,
+            allow_override_transformer=True,
+            has_text_encoder_1=True,
+            has_vae=False,
+        )
+        row = self.__create_output_components(
+            frame,
+            row,
+            ui_state,
+            allow_safetensors=True,
+            allow_diffusers=False,
+            allow_legacy_safetensors=False,
         )
 
     def __setup_stable_diffusion_xl_ui(self, frame, controller, ui_state):
@@ -505,7 +529,7 @@ class BaseModelTabView(ABC):
 
             row += 1
 
-        presets = controller.get_presets()
+        presets = controller.get_quantization_presets()
 
         self.components.label(frame, row, 0, "Quantization")
         self.components.layer_filter_entry(frame, row, 1, ui_state,
