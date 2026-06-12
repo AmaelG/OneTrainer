@@ -408,7 +408,8 @@ class BaseTrainingTabView(ABC):
                                   tooltip="Enables circular padding for all conv layers to better train seamless images")
             self.components.switch(frame, row, 1, ui_state, "force_circular_padding")
 
-    def __create_offloading_widgets(self, frame, row, ui_state, part, supports_checkpointing=True, supports_activation_offloading=False):
+    def __create_offloading_widgets(self, frame, row, ui_state, part, supports_checkpointing=True,
+                                    supports_activation_offloading=False):
         if supports_checkpointing:
             self.components.label(frame, row, 0, "Gradient Checkpointing",
                                   tooltip="Enables gradient checkpointing for this component. Reduces VRAM usage at the cost of training speed")
@@ -428,19 +429,6 @@ class BaseTrainingTabView(ABC):
 
         return row
 
-    def __create_vae_frame(self, master, row, ui_state):
-        frame = self.components.section_frame(master, row)
-        row = 0
-
-        self.components.label(frame, row, 0, "Train VAE",
-                              tooltip="Enables training the VAE model")
-        self.components.switch(frame, row, 1, ui_state, "vae.train")
-        row += 1
-
-        self.components.label(frame, row, 0, "Gradient Checkpointing",
-                              tooltip="Enables gradient checkpointing for the VAE. Reduces VRAM usage at the cost of training speed")
-        self.components.switch(frame, row, 1, ui_state, "vae.gradient_checkpointing")
-
     def __create_text_encoder_frame(self, master, row, ui_state, supports_clip_skip=True, supports_training=True,
                                     supports_sequence_length=False):
         frame = self.components.section_frame(master, row)
@@ -452,6 +440,7 @@ class BaseTrainingTabView(ABC):
             self.components.switch(frame, row, 1, ui_state, "text_encoder.train")
             row += 1
         else:
+            # no Train switch to act as the frame's header, so add an explicit one
             self.components.label(frame, row, 0, "Text Encoder")
             row += 1
 
@@ -603,6 +592,21 @@ class BaseTrainingTabView(ABC):
                               tooltip="Rescales the noise scheduler to a zero terminal signal to noise ratio and switches the model to a v-prediction target",
                               wraplength=130)
         self.components.switch(frame, row, 1, ui_state, "rescale_noise_scheduler_to_zero_terminal_snr")
+        row += 1
+
+    def __create_vae_frame(self, master, row, ui_state):
+        frame = self.components.section_frame(master, row)
+        row = 0
+
+        self.components.label(frame, row, 0, "Train VAE",
+                              tooltip="Enables training the VAE model")
+        self.components.switch(frame, row, 1, ui_state, "vae.train")
+        row += 1
+
+        self.components.label(frame, row, 0, "Gradient Checkpointing",
+                              tooltip="Enables gradient checkpointing for the VAE. Reduces VRAM usage at the cost of training speed")
+        self.components.switch(frame, row, 1, ui_state, "vae.gradient_checkpointing")
+        row += 1
 
     def __create_prior_frame(self, master, row, ui_state):
         frame = self.components.section_frame(master, row)
@@ -627,6 +631,7 @@ class BaseTrainingTabView(ABC):
         self.components.label(frame, row, 0, "Prior Learning Rate",
                               tooltip="The learning rate of the Prior. Overrides the base learning rate")
         self.components.entry(frame, row, 1, ui_state, "prior.learning_rate")
+        row += 1
 
     def __create_transformer_frame(self, master, row, ui_state, supports_guidance_scale: bool = False,
                                    supports_force_attention_mask: bool = True):
@@ -665,6 +670,7 @@ class BaseTrainingTabView(ABC):
             self.components.label(frame, row, 0, "Guidance Scale",
                                   tooltip="The guidance scale of guidance distilled models passed to the transformer during training.")
             self.components.entry(frame, row, 1, ui_state, "transformer.guidance_scale")
+            row += 1
 
     def __create_noise_frame(self, master, row, ui_state,
                               supports_generalized_offset_noise: bool = False,
@@ -722,6 +728,7 @@ class BaseTrainingTabView(ABC):
         self.components.entry(frame, 8, 1, ui_state, "timestep_shift", required=True)
 
         row = 9
+
         if supports_dynamic_timestep_shifting:
             # dynamic timestep shifting
             self.components.label(frame, row, 0, "Dynamic Timestep Shifting",
@@ -729,10 +736,10 @@ class BaseTrainingTabView(ABC):
             self.components.switch(frame, row, 1, ui_state, "dynamic_timestep_shifting")
             row += 1
 
-        # cep gamma
         self.components.label(frame, row, 0, "CEP Gamma",
                               tooltip="Conditional Embedding Perturbation. Inject a slight noise into the TEs outputs to enhance the quality, diversity, and fidelity of the generated images. Gamma controls perturbation noise magnitude, paper's default is 1.")
         self.components.entry(frame, row, 1, ui_state, "cep_gamma", required=True)
+        row += 1
 
     def __create_masked_frame(self, master, row, ui_state):
         frame = self.components.section_frame(master, row)

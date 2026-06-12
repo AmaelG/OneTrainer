@@ -408,8 +408,8 @@ class BaseModelTabView(ABC):
             options.append(("GGUF", DataType.GGUF))
             if include_a8:
                 options += [
-                    ("GGUF A8 float", DataType.GGUF_A8_FLOAT),
                     ("GGUF A8 int", DataType.GGUF_A8_INT),
+                    ("GGUF A8 float", DataType.GGUF_A8_FLOAT),
                 ]
 
         return options

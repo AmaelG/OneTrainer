@@ -183,44 +183,44 @@ class BaseTrainUIView(ABC):
         self.components.time_entry(frame, 9, 1, ui_state, "validate_after", "validate_after_unit")
 
         # device
-        self.components.label(frame, 10, 0, "Train Device",
-                          tooltip="The device used for training. Can be \"cuda\", \"cuda:0\", \"cuda:1\" etc. Default:\"cuda\". Must be \"cuda\" for multi-GPU training.")
-        self.components.entry(frame, 10, 1, ui_state, "train_device", required=True)
+        self.components.label(frame, 9, 0, "Train Device",
+                         tooltip="The device used for training. Can be \"cuda\", \"cuda:0\", \"cuda:1\" etc. Default:\"cuda\". Must be \"cuda\" for multi-GPU training.")
+        self.components.entry(frame, 9, 1, ui_state, "train_device", required=True)
 
-        self.components.label(frame, 10, 2, "Async Offloading",
-                          tooltip="Overlaps CPU<->GPU transfers with computation using CUDA streams. Applies to every offloaded component")
-        self.components.switch(frame, 10, 3, ui_state, "async_offloading")
+        self.components.label(frame, 9, 2, "Async Offloading",
+                         tooltip="Overlaps CPU<->GPU transfers with computation using CUDA streams. Applies to every offloaded component")
+        self.components.switch(frame, 9, 3, ui_state, "async_offloading")
 
-        self.components.label(frame, 11, 0, "Multi-GPU",
-                          tooltip="Enable multi-GPU training")
-        self.components.switch(frame, 11, 1, ui_state, "multi_gpu")
-        self.components.label(frame, 11, 2, "Device Indexes",
-                          tooltip="Multi-GPU: A comma-separated list of device indexes. If empty, all your GPUs are used. With a list such as \"0,1,3,4\" you can omit a GPU, for example an on-board graphics GPU.")
-        self.components.entry(frame, 11, 3, ui_state, "device_indexes")
+        self.components.label(frame, 10, 0, "Multi-GPU",
+                         tooltip="Enable multi-GPU training")
+        self.components.switch(frame, 10, 1, ui_state, "multi_gpu")
+        self.components.label(frame, 10, 2, "Device Indexes",
+                         tooltip="Multi-GPU: A comma-separated list of device indexes. If empty, all your GPUs are used. With a list such as \"0,1,3,4\" you can omit a GPU, for example an on-board graphics GPU.")
+        self.components.entry(frame, 10, 3, ui_state, "device_indexes")
 
-        self.components.label(frame, 12, 0, "Gradient Reduce Precision",
-                          tooltip="WEIGHT_DTYPE: Reduce gradients between GPUs in your weight data type; can be imprecise, but more efficient than float32\n"
+        self.components.label(frame, 11, 0, "Gradient Reduce Precision",
+                         tooltip="WEIGHT_DTYPE: Reduce gradients between GPUs in your weight data type; can be imprecise, but more efficient than float32\n"
                                  "WEIGHT_DTYPE_STOCHASTIC: Sum up the gradients in your weight data type, but average them in float32 and stochastically round if your weight data type is bfloat16\n"
                                  "FLOAT_32: Reduce gradients in float32\n"
                                  "FLOAT_32_STOCHASTIC: Reduce gradients in float32; use stochastic rounding to bfloat16 if your weight data type is bfloat16",
-                          wide_tooltip=True)
-        self.components.options(frame, 12, 1, [str(x) for x in list(GradientReducePrecision)], ui_state,
-                            "gradient_reduce_precision")
+                         wide_tooltip=True)
+        self.components.options(frame, 11, 1, [str(x) for x in list(GradientReducePrecision)], ui_state,
+                           "gradient_reduce_precision")
 
-        self.components.label(frame, 12, 2, "Fused Gradient Reduce",
-                          tooltip="Multi-GPU: Gradient synchronisation during the backward pass. Can be more efficient, especially with Async Gradient Reduce")
-        self.components.switch(frame, 12, 3, ui_state, "fused_gradient_reduce")
+        self.components.label(frame, 11, 2, "Fused Gradient Reduce",
+                         tooltip="Multi-GPU: Gradient synchronisation during the backward pass. Can be more efficient, especially with Async Gradient Reduce")
+        self.components.switch(frame, 11, 3, ui_state, "fused_gradient_reduce")
 
-        self.components.label(frame, 13, 0, "Async Gradient Reduce",
-                          tooltip="Multi-GPU: Asynchroniously start the gradient reduce operations during the backward pass. Can be more efficient, but requires some VRAM.")
-        self.components.switch(frame, 13, 1, ui_state, "async_gradient_reduce")
-        self.components.label(frame, 13, 2, "Buffer size (MB)",
-                          tooltip="Multi-GPU: Maximum VRAM for \"Async Gradient Reduce\", in megabytes. A multiple of this value can be needed if combined with \"Fused Back Pass\" and/or \"Layer offload fraction\"")
-        self.components.entry(frame, 13, 3, ui_state, "async_gradient_reduce_buffer")
+        self.components.label(frame, 12, 0, "Async Gradient Reduce",
+                         tooltip="Multi-GPU: Asynchroniously start the gradient reduce operations during the backward pass. Can be more efficient, but requires some VRAM.")
+        self.components.switch(frame, 12, 1, ui_state, "async_gradient_reduce")
+        self.components.label(frame, 12, 2, "Buffer size (MB)",
+                         tooltip="Multi-GPU: Maximum VRAM for \"Async Gradient Reduce\", in megabytes. A multiple of this value can be needed if combined with \"Fused Back Pass\" and/or \"Layer offload fraction\"")
+        self.components.entry(frame, 12, 3, ui_state, "async_gradient_reduce_buffer")
 
-        self.components.label(frame, 14, 0, "Temp Device",
-                          tooltip="The device used to temporarily offload models while they are not used. Default:\"cpu\"")
-        self.components.entry(frame, 14, 1, ui_state, "temp_device")
+        self.components.label(frame, 13, 0, "Temp Device",
+                         tooltip="The device used to temporarily offload models while they are not used. Default:\"cpu\"")
+        self.components.entry(frame, 13, 1, ui_state, "temp_device")
 
     def build_data_tab_content(self, frame, controller, ui_state):
         # aspect ratio bucketing
@@ -241,7 +241,7 @@ class BaseTrainUIView(ABC):
         # caching threads
         self.components.label(frame, 3, 0, "Caching Threads",
                          tooltip="Number of threads used while building the latent and text caches. Increase if your GPU has room during caching, decrease if it's going out of memory during caching. Only affects performance while the cache is being built.")
-        self.components.entry(frame, 3, 1, ui_state, "caching_threads", required=True)
+        self.components.entry(frame, 3, 1, ui_state, "caching_threads", width=100, sticky="nw", required=True)
 
         # prefetch next batch
         self.components.label(frame, 4, 0, "Prefetch Next Batch",
@@ -296,32 +296,32 @@ class BaseTrainUIView(ABC):
         self.components.switch(frame, 1, 1, ui_state, "rolling_backup")
 
         # rolling backup count
-        self.components.label(frame, 1, 3, "Rolling Backup Count",
+        self.components.label(frame, 2, 0, "Rolling Backup Count",
                          tooltip="Defines the number of backups to keep if rolling backups are enabled")
-        self.components.entry(frame, 1, 4, ui_state, "rolling_backup_count")
+        self.components.entry(frame, 2, 1, ui_state, "rolling_backup_count")
 
         # backup before save
-        self.components.label(frame, 2, 0, "Backup Before Save",
+        self.components.label(frame, 3, 0, "Backup Before Save",
                          tooltip="Create a full backup before saving the final model")
-        self.components.switch(frame, 2, 1, ui_state, "backup_before_save")
+        self.components.switch(frame, 3, 1, ui_state, "backup_before_save")
 
         # save after
-        self.components.label(frame, 3, 0, "Save Every",
+        self.components.label(frame, 4, 0, "Save Every",
                          tooltip="The interval used when automatically saving the model during training")
-        self.components.time_entry(frame, 3, 1, ui_state, "save_every", "save_every_unit")
+        self.components.time_entry(frame, 4, 1, ui_state, "save_every", "save_every_unit")
 
         # save now
-        self.components.button(frame, 3, 3, "save now", self.save_now)
+        self.components.button(frame, 4, 3, "save now", self.save_now)
 
         # skip save
-        self.components.label(frame, 4, 0, "Skip First",
+        self.components.label(frame, 5, 0, "Skip First",
                          tooltip="Start saving automatically after this interval has elapsed")
-        self.components.entry(frame, 4, 1, ui_state, "save_skip_first", width=50, sticky="nw")
+        self.components.entry(frame, 5, 1, ui_state, "save_skip_first", width=50, sticky="nw")
 
         # save filename prefix
-        self.components.label(frame, 5, 0, "Save Filename Prefix",
+        self.components.label(frame, 6, 0, "Save Filename Prefix",
                          tooltip="The prefix for filenames used when saving the model during training")
-        self.components.entry(frame, 5, 1, ui_state, "save_filename_prefix")
+        self.components.entry(frame, 6, 1, ui_state, "save_filename_prefix")
 
     def build_embedding_tab_content(self, frame, controller, ui_state):
         # embedding model name
