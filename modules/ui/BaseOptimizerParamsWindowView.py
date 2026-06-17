@@ -170,14 +170,14 @@ class BaseOptimizerParamsWindowView:
                     tooltip="Configure the auxiliary AdamW_adv optimizer",
                     width=20, padx=5)
             elif type == 'CenteredWDMode':
-                self.components.options(master, row, col + 1, ["full", "float8", "int8", "int4"], self.optimizer_ui_state, key,
-                                   command=self.update_user_pref)
+                self.components.options(master, row, col + 1, ["full", "float8", "int8", "int4"], optimizer_ui_state, key,
+                                        command=update_user_pref_cb)
             elif type == 'StatePrecision':
-                self.components.options(master, row, col + 1, ["auto", "factored", "fp32", "bf16_sr", "int8_sr"], self.optimizer_ui_state, key,
-                                   command=self.update_user_pref)
+                self.components.options(master, row, col + 1, ["auto", "factored", "fp32", "bf16_sr", "int8_sr"], optimizer_ui_state, key,
+                                        command=update_user_pref_cb)
             elif type == 'OrthoGrad':
-                components.options(master, row, col + 1, ["disabled", "flattened", "iterative"], self.optimizer_ui_state, key,
-                                   command=self.update_user_pref)
+                self.components.options(master, row, col + 1, ["disabled", "flattened", "iterative"], optimizer_ui_state, key,
+                                        command=update_user_pref_cb)
             elif type != 'bool':
                 self.components.entry(master, row, col + 1, optimizer_ui_state, key,
                                       command=update_user_pref_cb)

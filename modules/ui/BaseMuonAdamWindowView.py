@@ -45,9 +45,9 @@ class BaseMuonAdamWindowView:
 
             if param_type == 'StatePrecision':
                 self.components.options(master, row, col + 1, ["auto", "factored", "fp32", "bf16_sr", "int8_sr"], ui_state, key)
+            elif param_type == 'OrthoGrad':
+                self.components.options(master, row, col + 1, ["disabled", "flattened", "iterative"], ui_state, key)
             elif param_type != 'bool':
                 self.components.entry(master, row, col + 1, ui_state, key)
-            elif param_type == 'OrthoGrad':
-                components.options(master, row, col + 1, ["disabled", "flattened", "iterative"], self.adam_ui_state, key)
             else:
                 self.components.switch(master, row, col + 1, ui_state, key)
