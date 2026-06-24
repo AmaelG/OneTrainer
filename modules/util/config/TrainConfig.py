@@ -147,21 +147,29 @@ class TrainOptimizerConfig(BaseConfig):
     geometric_wd: False
 
     def __init__(self, data: list[(str, Any, type, bool)]):
-        super().__init__(data)
+        super().__init__(
+            data,
+            config_version=1,
+            config_migrations={
+                0: self.__migration_0
+            }
+        )
 
-    def from_dict(self, data: dict) -> "TrainOptimizerConfig":
-        sp = data.get("state_precision")
+    def __migration_0(self, data: dict) -> dict:
+        migrated_data = data.copy()
+
+        sp = migrated_data.get("state_precision")
         valid_sp = {"auto", "factored", "fp32", "fp16", "bf16_sr", "int8_sr"}
         if sp is not None and sp not in valid_sp:
             print(f"WARN: invalid optimizer state_precision '{sp}' in config, falling back to 'auto'.")
-            data = data.copy()
-            data["state_precision"] = "auto"
+            migrated_data["state_precision"] = "auto"
+
         # orthogonal_gradient was a bool before adv_optm 2.5 made it a mode string
-        og_ortho = data.get("orthogonal_gradient")
+        og_ortho = migrated_data.get("orthogonal_gradient")
         if isinstance(og_ortho, bool):
-            data = data.copy()
-            data["orthogonal_gradient"] = "flattened" if og_ortho else "disabled"
-        return super().from_dict(data)
+            migrated_data["orthogonal_gradient"] = "flattened" if og_ortho else "disabled"
+
+        return migrated_data
 
     @staticmethod
     def default_values():
@@ -859,49 +867,6 @@ class TrainConfig(BaseConfig):
 
         return migrated_data
 
-    def __migration_10(self, data: dict) -> dict:
-        migrated_data = data.copy()
-
-        # Fan the four old global offload/checkpointing settings out per-component.
-        # After __migration_4 gradient_checkpointing is a string "OFF"/"ON"/"CPU_OFFLOADED".
-        gc = migrated_data.pop("gradient_checkpointing", "ON")
-        act = migrated_data.pop("enable_activation_offloading", True)
-        frac = migrated_data.pop("layer_offload_fraction", 0.0)
-        migrated_data["async_offloading"] = migrated_data.pop("enable_async_offloading", True)
-
-        def fan_out(part: str):
-            if part in migrated_data:
-                migrated_data[part]["gradient_checkpointing"] = gc != "OFF"
-                migrated_data[part]["activation_offloading"] = (gc == "CPU_OFFLOADED") and act
-                migrated_data[part]["offload_fraction"] = frac if gc == "CPU_OFFLOADED" else 0.0
-
-        fan_out("unet")
-        fan_out("prior")
-        fan_out("transformer")
-        fan_out("text_encoder")
-        fan_out("text_encoder_2")
-        fan_out("text_encoder_3")
-        fan_out("text_encoder_4")
-        fan_out("vae")
-        fan_out("effnet_encoder")
-        fan_out("decoder")
-        fan_out("decoder_text_encoder")
-        fan_out("decoder_vqgan")
-
-        if "latent_caching" in migrated_data:
-            latent_caching = migrated_data.pop("latent_caching")
-            migrated_data["image_caching"] = latent_caching
-            migrated_data["text_caching"] = latent_caching
-
-        if "dataloader_threads" in migrated_data:
-            migrated_data["caching_threads"] = migrated_data.pop("dataloader_threads")
-
-        return migrated_data
-
-    def model_part_configs(self) -> list[TrainModelPartConfig]:
-        # the per-part configs for the components this model_type actually has. Avoids "phantom" parts whose
-        # fields keep their defaults (train=True) or migrated offload values but don't exist in the model.
-        return [getattr(self, name) for name in self.model_type.model_parts()]
 
     def weight_dtypes(self) -> ModelWeightDtypes:
         return ModelWeightDtypes(
