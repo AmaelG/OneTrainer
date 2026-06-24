@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 import math
 from contextlib import nullcontext
 from random import Random
+from typing import TYPE_CHECKING
 
 from modules.model.BaseModel import BaseModel
 from modules.module.LoRAModule import LoRAModuleWrapper
@@ -19,9 +22,10 @@ from diffusers import (
 )
 from transformers import PreTrainedTokenizerFast
 
-from lens.pipeline import LensPipeline
-from lens.text_encoder import LensGptOssEncoder
-from lens.transformer import LensTransformer2DModel
+if TYPE_CHECKING:
+    from lens.pipeline import LensPipeline
+    from lens.text_encoder import LensGptOssEncoder
+    from lens.transformer import LensTransformer2DModel
 
 # Chat template constants, matching lens/pipeline.py
 CHAT_SYSTEM = (
@@ -154,6 +158,8 @@ class LensModel(BaseModel):
         return self.text_encoder
 
     def create_pipeline(self) -> DiffusionPipeline:
+        from lens.pipeline import LensPipeline
+
         return LensPipeline(
             scheduler=self.noise_scheduler,
             vae=self.vae,

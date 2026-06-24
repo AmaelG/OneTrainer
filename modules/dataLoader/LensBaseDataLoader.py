@@ -16,7 +16,6 @@ from modules.util.TrainProgress import TrainProgress
 
 from mgds.pipelineModules.DecodeTokens import DecodeTokens
 from mgds.pipelineModules.DecodeVAE import DecodeVAE
-from mgds.pipelineModules.EncodeLensText import EncodeLensText
 from mgds.pipelineModules.EncodeVAE import EncodeVAE
 from mgds.pipelineModules.PadMaskedTokens import PadMaskedTokens
 from mgds.pipelineModules.PruneMaskedTokens import PruneMaskedTokens
@@ -34,6 +33,8 @@ class LensBaseDataLoader(
     DataLoaderText2ImageMixin,
 ):
     def _preparation_modules(self, config: TrainConfig, model: LensModel):
+        from mgds.pipelineModules.EncodeLensText import EncodeLensText
+
         rescale_image = RescaleImageChannels(image_in_name='image', image_out_name='image', in_range_min=0, in_range_max=1, out_range_min=-1, out_range_max=1)
         encode_image = EncodeVAE(in_name='image', out_name='latent_image_distribution', vae=model.vae, autocast_contexts=[model.autocast_context], dtype=model.train_dtype.torch_dtype())
         image_sample = SampleVAEDistribution(in_name='latent_image_distribution', out_name='latent_image', mode='mean')

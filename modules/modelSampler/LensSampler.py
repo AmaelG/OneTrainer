@@ -17,7 +17,6 @@ from modules.util.torch_util import torch_gc
 import torch
 
 import numpy as np
-from lens.pipeline import LensPipeline, compute_empirical_mu
 from tqdm import tqdm
 
 
@@ -49,6 +48,8 @@ class LensSampler(BaseModelSampler):
             noise_scheduler: NoiseScheduler,
             on_update_progress: Callable[[int, int], None] = lambda _, __: None,
     ) -> ModelSamplerOutput:
+        from lens.pipeline import LensPipeline, compute_empirical_mu
+
         with self.model.autocast_context:
             generator = torch.Generator(device=self.train_device)
             if random_seed:

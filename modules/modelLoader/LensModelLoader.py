@@ -23,9 +23,6 @@ from diffusers import (
 )
 from transformers import PreTrainedTokenizerFast
 
-from lens.text_encoder import LensGptOssEncoder
-from lens.transformer import LensTransformer2DModel
-
 
 class LensModelLoader(
     HFModelLoaderMixin,
@@ -62,6 +59,9 @@ class LensModelLoader(
             quantization: QuantizationConfig,
             text_encoder_on_demand: bool,
     ):
+        from lens.text_encoder import LensGptOssEncoder
+        from lens.transformer import LensTransformer2DModel
+
         if transformer_model_name:
             transformer = LensTransformer2DModel.from_single_file(
                 transformer_model_name,

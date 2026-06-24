@@ -645,7 +645,6 @@ class TrainConfig(BaseConfig):
                 7: self.__migration_7,
                 8: self.__migration_8,
                 9: self.__migration_9,
-                10: self.__migration_10,
             }
         )
 
