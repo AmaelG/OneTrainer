@@ -11,10 +11,7 @@ from modules.modelSetup.mixin.ModelSetupEmbeddingMixin import ModelSetupEmbeddin
 from modules.modelSetup.mixin.ModelSetupNoiseMixin import ModelSetupNoiseMixin
 from modules.modelSetup.mixin.ModelSetupText2ImageMixin import ModelSetupText2ImageMixin
 from modules.module.AdditionalEmbeddingWrapper import AdditionalEmbeddingWrapper
-from modules.util.checkpointing_util import (
-    enable_checkpointing_for_clip_encoder_layers,
-    enable_checkpointing_for_stable_cascade_blocks,
-)
+from modules.util.checkpointing_util import enable_checkpointing_for_clip_encoder_layers
 from modules.util.config.TrainConfig import TrainConfig
 from modules.util.conv_util import apply_circular_padding_to_conv2d
 from modules.util.dtype_util import (
