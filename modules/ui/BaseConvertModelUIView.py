@@ -31,11 +31,13 @@ class BaseConvertModelUIView:
             ("Flux Dev", ModelType.FLUX_DEV_1),
             ("Flux Fill Dev", ModelType.FLUX_FILL_DEV_1),
             ("Flux 2", ModelType.FLUX_2),
+            ("Lens", ModelType.LENS),
             ("Hunyuan Video", ModelType.HUNYUAN_VIDEO),
             ("Chroma1", ModelType.CHROMA_1), #TODO does this just work? HiDream is not here
             ("QwenImage", ModelType.QWEN), #TODO does this just work? HiDream is not here
             ("Anima", ModelType.ANIMA),
             ("ZImage", ModelType.Z_IMAGE),
+            ("Ideogram 4", ModelType.IDEOGRAM_4),
         ], ui_state, "model_type")
 
         # training method
@@ -70,6 +72,7 @@ class BaseConvertModelUIView:
         self.components.options_kv(frame, 4, 1, [
             ("Safetensors", ModelFormat.SAFETENSORS),
             ("Diffusers", ModelFormat.DIFFUSERS),
+            ("Comfy LoRA", ModelFormat.COMFY_LORA),
         ], ui_state, "output_model_format")
 
         # output model destination

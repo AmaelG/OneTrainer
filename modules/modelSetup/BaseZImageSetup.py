@@ -46,9 +46,8 @@ class BaseZImageSetup(
             model: ZImageModel,
             config: TrainConfig,
     ):
-        if config.transformer.checkpointing_or_offloading_enabled():
-            model.transformer_offload_conductor = enable_checkpointing_for_z_image_transformer(model.transformer, config, config.transformer)
-        if model.text_encoder is not None and config.text_encoder.checkpointing_or_offloading_enabled():
+        model.transformer_offload_conductor = enable_checkpointing_for_z_image_transformer(model.transformer, config, config.transformer)
+        if model.text_encoder is not None:
             model.text_encoder_offload_conductor = enable_checkpointing_for_qwen3_encoder_layers(model.text_encoder, config, config.text_encoder)
 
         model.autocast_context, model.train_dtype = create_autocast_context(
@@ -169,7 +168,7 @@ class BaseZImageSetup(
         ).mean()
 
     def prepare_text_caching(self, model: ZImageModel, config: TrainConfig):
-        model.to(self.temp_device)
+        model.release()
         model.text_encoder_to(self.train_device)
 
         model.eval()

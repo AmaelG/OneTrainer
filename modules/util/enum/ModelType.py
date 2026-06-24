@@ -45,6 +45,10 @@ class ModelType(Enum):
 
     ERNIE = 'ERNIE'
 
+    LENS = 'LENS'
+
+    IDEOGRAM_4 = 'IDEOGRAM_4'
+
     def __str__(self):
         return self.value
 
@@ -119,6 +123,12 @@ class ModelType(Enum):
     def is_ernie(self):
         return self == ModelType.ERNIE
 
+    def is_lens(self):
+        return self == ModelType.LENS
+
+    def is_ideogram(self):
+        return self == ModelType.IDEOGRAM_4
+
     def has_mask_input(self) -> bool:
         return self == ModelType.STABLE_DIFFUSION_15_INPAINTING \
             or self == ModelType.STABLE_DIFFUSION_20_INPAINTING \
@@ -169,7 +179,9 @@ class ModelType(Enum):
             or self.is_hunyuan_video() \
             or self.is_hi_dream() \
             or self.is_z_image() \
-            or self.is_ernie()
+            or self.is_ernie() \
+            or self.is_lens() \
+            or self.is_ideogram()
 
     def is_video_model(self) -> bool:
         return self.is_hunyuan_video() #incase we add more video models in the future
@@ -226,6 +238,8 @@ _MODEL_PARTS: dict[ModelType, tuple[str, ...]] = {
     ModelType.ANIMA: ("text_encoder", "transformer", "vae"),
     ModelType.Z_IMAGE: ("text_encoder", "transformer", "vae"),
     ModelType.ERNIE: ("text_encoder", "transformer", "vae"),
+    ModelType.LENS: ("text_encoder", "transformer", "vae"),
+    ModelType.IDEOGRAM_4: ("text_encoder", "transformer", "unconditional_transformer", "vae"),
 }
 
 

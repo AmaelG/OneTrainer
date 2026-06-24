@@ -299,6 +299,7 @@ class TrainModelPartConfig(BaseConfig):
     gradient_checkpointing: bool
     offload_fraction: float
     activation_offloading: bool
+    load_on_demand: bool
 
     def __init__(self, data: list[(str, Any, type, bool)]):
         super().__init__(data)
@@ -336,6 +337,7 @@ class TrainModelPartConfig(BaseConfig):
         data.append(("gradient_checkpointing", True, bool, False))
         data.append(("offload_fraction", 0.0, float, False))
         data.append(("activation_offloading", True, bool, False))
+        data.append(("load_on_demand", False, bool, False))
 
         return TrainModelPartConfig(data)
 
@@ -506,6 +508,7 @@ class TrainConfig(BaseConfig):
 
     # transformer
     transformer: TrainModelPartConfig
+    unconditional_transformer: TrainModelPartConfig
     quantization: QuantizationConfig
 
     # text encoder
@@ -571,7 +574,10 @@ class TrainConfig(BaseConfig):
     # oft
     oft_block_size: int
     oft_block_share: bool
+    dora_oft: bool
     oft_scaled: bool
+    oft_clipped_norm: float | None
+    oft_cans: bool
 
     # lokr
     lokr_dim: int
@@ -904,6 +910,7 @@ class TrainConfig(BaseConfig):
             self.unet.weight_dtype,
             self.prior.weight_dtype,
             self.transformer.weight_dtype,
+            self.unconditional_transformer.weight_dtype,
             self.text_encoder.weight_dtype,
             self.text_encoder_2.weight_dtype,
             self.text_encoder_3.weight_dtype,
@@ -935,6 +942,11 @@ class TrainConfig(BaseConfig):
             include_text_encoder_2=self.text_encoder_2.include,
             include_text_encoder_3=self.text_encoder_3.include,
             include_text_encoder_4=self.text_encoder_4.include,
+            text_encoder_on_demand=self.text_encoder_on_demand(),
+            text_encoder_2_on_demand=self.text_encoder_2_on_demand(),
+            text_encoder_3_on_demand=self.text_encoder_3_on_demand(),
+            text_encoder_4_on_demand=self.text_encoder_4_on_demand(),
+            include_unconditional_transformer=self.unconditional_transformer.include,
         )
 
     def train_any_embedding(self) -> bool:
@@ -968,6 +980,30 @@ class TrainConfig(BaseConfig):
                 and not self.embedding.is_output_embedding) \
             or ((self.text_encoder_4.train_embedding or not self.model_type.has_multiple_text_encoders())
                 and self.train_any_embedding())
+
+    #an encoder is loaded on demand only when it is requested, frozen (not trained, no embedding
+    #training) and its conditioning is cached -- otherwise it is needed resident every step.
+    def text_encoder_on_demand(self) -> bool:
+        if self.model_type.is_lens():
+            return True
+        return self.text_encoder.load_on_demand \
+            and not self.train_text_encoder_or_embedding() \
+            and self.latent_caching
+
+    def text_encoder_2_on_demand(self) -> bool:
+        return self.text_encoder_2.load_on_demand \
+            and not self.train_text_encoder_2_or_embedding() \
+            and self.latent_caching
+
+    def text_encoder_3_on_demand(self) -> bool:
+        return self.text_encoder_3.load_on_demand \
+            and not self.train_text_encoder_3_or_embedding() \
+            and self.latent_caching
+
+    def text_encoder_4_on_demand(self) -> bool:
+        return self.text_encoder_4.load_on_demand \
+            and not self.train_text_encoder_4_or_embedding() \
+            and self.latent_caching
 
     def all_embedding_configs(self):
         if self.training_method == TrainingMethod.EMBEDDING:
@@ -1156,6 +1192,13 @@ class TrainConfig(BaseConfig):
         transformer.learning_rate = None
         data.append(("transformer", transformer, TrainModelPartConfig, False))
 
+        unconditional_transformer = TrainModelPartConfig.default_values()
+        unconditional_transformer.model_name = ""
+        unconditional_transformer.train = False
+        unconditional_transformer.gradient_checkpointing = False
+        unconditional_transformer.activation_offloading = False
+        data.append(("unconditional_transformer", unconditional_transformer, TrainModelPartConfig, False))
+
         #quantization layer filter
         quantization = QuantizationConfig.default_values()
         data.append(("quantization", quantization, QuantizationConfig, False))
@@ -1258,7 +1301,10 @@ class TrainConfig(BaseConfig):
         # oft
         data.append(("oft_block_size", 32, int, False))
         data.append(("oft_block_share", False, bool, False))
+        data.append(("dora_oft", False, bool, False))
         data.append(("oft_scaled", False, bool, False))
+        data.append(("oft_clipped_norm", 0.95, float, True))
+        data.append(("oft_cans", False, bool, False))
 
         # lokr
         data.append(("lokr_dim", 16, int, False))

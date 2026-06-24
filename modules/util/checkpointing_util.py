@@ -19,6 +19,7 @@ from diffusers.models.transformers.transformer_hunyuan_video import (
 )
 from transformers.models.clip.modeling_clip import CLIPEncoderLayer
 from transformers.models.gemma2.modeling_gemma2 import Gemma2DecoderLayer
+from transformers.models.gpt_oss.modeling_gpt_oss import GptOssDecoderLayer
 from transformers.models.llama.modeling_llama import LlamaDecoderLayer
 from transformers.models.mistral.modeling_mistral import MistralDecoderLayer
 from transformers.models.qwen2_5_vl.modeling_qwen2_5_vl import Qwen2_5_VLDecoderLayer
@@ -223,6 +224,9 @@ def enable_checkpointing(
         lists, # if there are multiple entries in this list, they must be in the exact order they are executed - otherwise offloading fails
         offload_enabled: bool = True,
 ) -> LayerOffloadConductor | None:
+    if not part.checkpointing_or_offloading_enabled() and not compile:
+        return None
+
     # a conductor exists iff this part actually offloads (and the component supports conductor offloading)
     offload = offload_enabled and part.offloading_enabled()
     conductor = LayerOffloadConductor(model, config, part) if offload else None
@@ -280,17 +284,6 @@ def enable_checkpointing_for_clip_encoder_layers(
 ):
     return enable_checkpointing(model, config, part, False, [
         (CLIPEncoderLayer, []), # No activation offloading for text encoders, because the output might be taken from the middle of the network
-    ])
-
-def enable_checkpointing_for_stable_cascade_blocks(
-        model: nn.Module,
-        config: TrainConfig,
-        part: TrainModelPartConfig,
-) -> LayerOffloadConductor | None:
-    return enable_checkpointing(model, config, part, config.compile, [
-        (SDCascadeResBlock, []),
-        (SDCascadeAttnBlock, []),
-        (SDCascadeTimestepBlock, []),
     ])
 
 def enable_checkpointing_for_t5_encoder_layers(
@@ -436,8 +429,9 @@ def enable_checkpointing_for_hunyuan_video_transformer(
 def enable_checkpointing_for_hi_dream_transformer(
         model: nn.Module,
         config: TrainConfig,
-) -> LayerOffloadConductor:
-    return enable_checkpointing(model, config, config.compile, [
+        part: TrainModelPartConfig,
+) -> LayerOffloadConductor | None:
+    return enable_checkpointing(model, config, part, config.compile, [
         (model.double_stream_blocks, ["hidden_states", "encoder_hidden_states"]),
         (model.single_stream_blocks, ["hidden_states"                         ]),
     ])
@@ -449,4 +443,34 @@ def enable_checkpointing_for_ernie_transformer(
 ) -> LayerOffloadConductor | None:
     return enable_checkpointing(model, config, part, config.compile, [
         (model.layers, ["x"]),
+    ])
+
+
+def enable_checkpointing_for_lens_transformer(
+        model: nn.Module,
+        config: TrainConfig,
+        part: TrainModelPartConfig,
+) -> LayerOffloadConductor | None:
+    return enable_checkpointing(model, config, part, config.compile, [
+        (model.transformer_blocks, ["hidden_states", "encoder_hidden_states"]),
+    ])
+
+
+def enable_checkpointing_for_gpt_oss_encoder_layers(
+        model: nn.Module,
+        config: TrainConfig,
+        part: TrainModelPartConfig,
+) -> LayerOffloadConductor | None:
+    return enable_checkpointing(model, config, part, False, [
+        (GptOssDecoderLayer, []),  # No activation offloading: hidden states are taken from intermediate layers by encode_layers()
+    ])
+
+
+def enable_checkpointing_for_ideogram_transformer(
+        model: nn.Module,
+        config: TrainConfig,
+        part: TrainModelPartConfig,
+) -> LayerOffloadConductor | None:
+    return enable_checkpointing(model, config, part, config.compile, [
+        (model.layers, ["hidden_states"]),
     ])
