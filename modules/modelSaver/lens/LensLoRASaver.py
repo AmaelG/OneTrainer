@@ -1,6 +1,5 @@
 from modules.model.LensModel import LensModel
 from modules.modelSaver.mixin.LoRASaverMixin import LoRASaverMixin
-from modules.util.convert.lora.convert_lora_util import LoraConversionKeySet
 from modules.util.enum.ModelFormat import ModelFormat
 
 import torch
@@ -12,9 +11,6 @@ class LensLoRASaver(
 ):
     def __init__(self):
         super().__init__()
-
-    def _get_convert_key_sets(self, model: LensModel) -> list[LoraConversionKeySet] | None:
-        return None
 
     def _get_state_dict(
             self,

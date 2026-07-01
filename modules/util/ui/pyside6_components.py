@@ -1,4 +1,5 @@
 import contextlib
+import html
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Literal
@@ -8,7 +9,6 @@ from modules.util.enum.TimeUnit import TimeUnit
 from modules.util.path_util import supported_image_extensions, supported_video_extensions
 from modules.util.ui.pyside6_validation import PySide6FieldValidator, PySide6PathValidator
 from modules.util.ui.UIState import BaseUIState
-from modules.util.ui.validation import DEFAULT_MAX_UNDO
 
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QPixmap
@@ -45,6 +45,13 @@ def _layout(master: QWidget) -> QGridLayout:
     return lo
 
 
+def _set_tooltip(component: QWidget, text: str, wide: bool = False) -> None:
+    # plain QToolTip text is rendered on a single line; wrap it as rich text
+    # with a max-width so it matches Ctk's wraplength of 180/350px
+    width = 350 if wide else 180
+    component.setToolTip(f'<p style="max-width: {width}px;">{html.escape(text)}</p>')
+
+
 def _alignment(sticky: str) -> Qt.AlignmentFlag:
     has_e = 'e' in sticky
     has_w = 'w' in sticky
@@ -58,10 +65,13 @@ def _alignment(sticky: str) -> Qt.AlignmentFlag:
     else:
         h = Qt.AlignLeft
 
+    has_v = 'v' in sticky
     if has_n and has_s:
         v = Qt.AlignmentFlag(0)
     elif has_s:
         v = Qt.AlignBottom
+    elif has_v:
+        v = Qt.AlignVCenter
     else:
         v = Qt.AlignTop
 
@@ -101,10 +111,15 @@ def scrollable_frame(parent: QWidget) -> tuple[QScrollArea, QWidget]:
 
 def _pack_form(master: QWidget) -> None:
     # Add a stretch row and column after the last content cell so extra space
-    # goes to the empty gutter rather than stretching content widgets.
+    # goes to the empty gutter rather than stretching content widgets. Skip this
+    # if a content row/column already claims stretch (e.g. an entry meant to
+    # grow) - adding another stretchy gutter would only split the extra space
+    # between the two instead of giving it all to the intended one.
     lo = _layout(master)
-    lo.setRowStretch(lo.rowCount(), 1)
-    lo.setColumnStretch(lo.columnCount(), 1)
+    if not any(lo.rowStretch(r) for r in range(lo.rowCount())):
+        lo.setRowStretch(lo.rowCount(), 1)
+    if not any(lo.columnStretch(c) for c in range(lo.columnCount())):
+        lo.setColumnStretch(lo.columnCount(), 1)
 
 
 # ---------------------------------------------------------------------------
@@ -144,18 +159,26 @@ def label(
         underline: bool = False,
 ) -> QLabel:
     component = QLabel(text, master)
+    cell_alignment = Qt.AlignVCenter | Qt.AlignLeft
     if wraplength > 0:
         component.setWordWrap(True)
         component.setMaximumWidth(wraplength)
+        # multi-line labels must not be vertically centered: if a neighboring
+        # widget in the same row ever forces the row shorter than this label's
+        # wrapped text, centering clips the top and bottom lines, leaving only
+        # the middle line visible
+        component.setAlignment(Qt.AlignTop | Qt.AlignLeft)
+        component.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
+        cell_alignment = Qt.AlignTop | Qt.AlignLeft
     if tooltip:
-        component.setToolTip(tooltip)
+        _set_tooltip(component, tooltip, wide_tooltip)
     if underline:
         font = component.font()
         font.setUnderline(True)
         component.setFont(font)
     layout = _layout(master)
     layout.addWidget(component, row, column)
-    layout.setAlignment(component, Qt.AlignVCenter | Qt.AlignLeft)
+    layout.setAlignment(component, cell_alignment)
     return component
 
 
@@ -174,34 +197,33 @@ def entry(
         wide_tooltip: bool = False,
         width: int = 140,
         sticky: str = "new",
-        max_undo: int | None = None,
+        max_undo: int | None = None,  # unused: kept for signature parity with ctk_components.entry()
         validator_factory: Callable[..., PySide6FieldValidator] | None = None,
         extra_validate: Callable[[str], str | None] | None = None,
         required: bool = False,
 ) -> QLineEdit:
     var = ui_state.get_var(var_name)
 
-    if command:
-        ui_state.add_var_trace(var_name, command)
-
     component = QLineEdit(master)
     component.setMinimumWidth(width)
     _add(_layout(master), component, row, column, sticky=sticky)
 
+    if command:
+        trace_id = ui_state.add_var_trace(var_name, command)
+        component.destroyed.connect(lambda: ui_state.remove_var_trace(var_name, trace_id))
+
     if tooltip:
-        component.setToolTip(tooltip)
+        _set_tooltip(component, tooltip, wide_tooltip)
 
     if validator_factory is not None:
         validator = validator_factory(
             component, var, ui_state, var_name,
-            max_undo=max_undo or DEFAULT_MAX_UNDO,
             extra_validate=extra_validate,
             required=required,
         )
     else:
         validator = PySide6FieldValidator(
             component, var, ui_state, var_name,
-            max_undo=max_undo or DEFAULT_MAX_UNDO,
             extra_validate=extra_validate,
             required=required,
         )
@@ -446,13 +468,18 @@ def button(
         tooltip: str | None = None,
         padx: int = PAD,
         pady: int = PAD,
-        **kwargs,
+        sticky: str = "new",
+        width: int | None = None,
 ) -> QPushButton:
     component = QPushButton(text, master)
     component.clicked.connect(command)
+    if width is not None:
+        # ctk's width is a floor, not a cap: CTkButton never disables grid propagation,
+        # so it grows past `width` to fit its label. Match that with setMinimumWidth.
+        component.setMinimumWidth(width)
     if tooltip:
-        component.setToolTip(tooltip)
-    _add(_layout(master), component, row, column, sticky="new", padx=padx, pady=pady)
+        _set_tooltip(component, tooltip)
+    _add(_layout(master), component, row, column, sticky=sticky, padx=padx, pady=pady)
     return component
 
 
@@ -539,6 +566,7 @@ def options_kv(
         ui_state: BaseUIState,
         var_name: str,
         command: Callable[[Any], None] | None = None,
+        sticky: str = "new",
 ) -> QComboBox:
     var = ui_state.get_var(var_name)
     keys = [key for key, _ in values]
@@ -587,7 +615,7 @@ def options_kv(
     combo.currentTextChanged.connect(on_combo)
     cb_id = var._bind_widget(on_var)
     combo.destroyed.connect(lambda: var._unbind_widget(cb_id))
-    _add(_layout(master), combo, row, column)
+    _add(_layout(master), combo, row, column, sticky=sticky)
 
     # match CTK behavior: fire initial command with the current value
     if command:
@@ -615,7 +643,8 @@ def switch(
     component.setChecked(bool(var.get()))
 
     if command:
-        ui_state.add_var_trace(var_name, command)
+        trace_id = ui_state.add_var_trace(var_name, command)
+        component.destroyed.connect(lambda: ui_state.remove_var_trace(var_name, trace_id))
 
     _updating = False
 
@@ -652,6 +681,7 @@ def progress(master: QWidget, row: int, column: int) -> QProgressBar:
     component.setRange(0, 1000)
     component.setValue(0)
     component.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+    component.setFixedHeight(12)
     _add(_layout(master), component, row, column, sticky="ew")
     return component
 
@@ -679,6 +709,7 @@ def double_progress(
         p.setRange(0, 1000)
         p.setValue(0)
         p.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        p.setFixedHeight(16)
 
     lo.addWidget(label_1_component,       0, 0)
     lo.addWidget(progress_1_component,    0, 1)
