@@ -975,6 +975,9 @@ class TrainConfig(BaseConfig):
         else:
             return self.additional_embeddings
 
+    def model_part_configs(self) -> list[TrainModelPartConfig]:
+        return [getattr(self, part_name) for part_name in self.model_type.model_parts()]
+
     def get_last_backup_path(self) -> str | None:
         backups_path = os.path.join(self.workspace_dir, "backup")
         if os.path.exists(backups_path):
